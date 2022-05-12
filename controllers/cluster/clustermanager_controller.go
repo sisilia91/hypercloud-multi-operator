@@ -27,6 +27,7 @@ import (
 
 	coreV1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	extensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -428,71 +429,89 @@ func (r *ClusterManagerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	controller.Watch(
-		&source.Kind{Type: &capiV1alpha3.Cluster{}},
-		handler.EnqueueRequestsFromMapFunc(r.requeueClusterManagersForCluster),
-		predicate.Funcs{
-			UpdateFunc: func(e event.UpdateEvent) bool {
-				oldc := e.ObjectOld.(*capiV1alpha3.Cluster)
-				newc := e.ObjectNew.(*capiV1alpha3.Cluster)
+	key := types.NamespacedName{
+		Name: "clusters.cluster.x-k8s.io",
+	}
+	err = r.Get(context.TODO(), key, &extensions.CustomResourceDefinition{})
+	if err == nil {
+		controller.Watch(
+			&source.Kind{Type: &capiV1alpha3.Cluster{}},
+			handler.EnqueueRequestsFromMapFunc(r.requeueClusterManagersForCluster),
+			predicate.Funcs{
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					oldc := e.ObjectOld.(*capiV1alpha3.Cluster)
+					newc := e.ObjectNew.(*capiV1alpha3.Cluster)
 
-				return !oldc.Status.ControlPlaneInitialized && newc.Status.ControlPlaneInitialized
+					return !oldc.Status.ControlPlaneInitialized && newc.Status.ControlPlaneInitialized
+				},
+				CreateFunc: func(e event.CreateEvent) bool {
+					return false
+				},
+				DeleteFunc: func(e event.DeleteEvent) bool {
+					return true
+				},
+				GenericFunc: func(e event.GenericEvent) bool {
+					return false
+				},
 			},
-			CreateFunc: func(e event.CreateEvent) bool {
-				return false
-			},
-			DeleteFunc: func(e event.DeleteEvent) bool {
-				return true
-			},
-			GenericFunc: func(e event.GenericEvent) bool {
-				return false
-			},
-		},
-	)
+		)
+	}
 
-	controller.Watch(
-		&source.Kind{Type: &controlplanev1.KubeadmControlPlane{}},
-		handler.EnqueueRequestsFromMapFunc(r.requeueClusterManagersForKubeadmControlPlane),
-		predicate.Funcs{
-			UpdateFunc: func(e event.UpdateEvent) bool {
-				oldKcp := e.ObjectOld.(*controlplanev1.KubeadmControlPlane)
-				newKcp := e.ObjectNew.(*controlplanev1.KubeadmControlPlane)
+	key = types.NamespacedName{
+		Name: "kubeadmcontrolplanes.controlplane.cluster.x-k8s.io",
+	}
+	err = r.Get(context.TODO(), key, &extensions.CustomResourceDefinition{})
+	if err == nil {
+		controller.Watch(
+			&source.Kind{Type: &controlplanev1.KubeadmControlPlane{}},
+			handler.EnqueueRequestsFromMapFunc(r.requeueClusterManagersForKubeadmControlPlane),
+			predicate.Funcs{
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					oldKcp := e.ObjectOld.(*controlplanev1.KubeadmControlPlane)
+					newKcp := e.ObjectNew.(*controlplanev1.KubeadmControlPlane)
 
-				return oldKcp.Status.Replicas != newKcp.Status.Replicas
+					return oldKcp.Status.Replicas != newKcp.Status.Replicas
+				},
+				CreateFunc: func(e event.CreateEvent) bool {
+					return true
+				},
+				DeleteFunc: func(e event.DeleteEvent) bool {
+					return false
+				},
+				GenericFunc: func(e event.GenericEvent) bool {
+					return false
+				},
 			},
-			CreateFunc: func(e event.CreateEvent) bool {
-				return true
-			},
-			DeleteFunc: func(e event.DeleteEvent) bool {
-				return false
-			},
-			GenericFunc: func(e event.GenericEvent) bool {
-				return false
-			},
-		},
-	)
+		)
+	}
 
-	controller.Watch(
-		&source.Kind{Type: &capiV1alpha3.MachineDeployment{}},
-		handler.EnqueueRequestsFromMapFunc(r.requeueClusterManagersForMachineDeployment),
-		predicate.Funcs{
-			UpdateFunc: func(e event.UpdateEvent) bool {
-				oldMd := e.ObjectOld.(*capiV1alpha3.MachineDeployment)
-				newMd := e.ObjectNew.(*capiV1alpha3.MachineDeployment)
+	key = types.NamespacedName{
+		Name: "machinedeployments.cluster.x-k8s.io",
+	}
+	err = r.Get(context.TODO(), key, &extensions.CustomResourceDefinition{})
+	if err == nil {
+		controller.Watch(
+			&source.Kind{Type: &capiV1alpha3.MachineDeployment{}},
+			handler.EnqueueRequestsFromMapFunc(r.requeueClusterManagersForMachineDeployment),
+			predicate.Funcs{
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					oldMd := e.ObjectOld.(*capiV1alpha3.MachineDeployment)
+					newMd := e.ObjectNew.(*capiV1alpha3.MachineDeployment)
 
-				return oldMd.Status.Replicas != newMd.Status.Replicas
+					return oldMd.Status.Replicas != newMd.Status.Replicas
+				},
+				CreateFunc: func(e event.CreateEvent) bool {
+					return true
+				},
+				DeleteFunc: func(e event.DeleteEvent) bool {
+					return false
+				},
+				GenericFunc: func(e event.GenericEvent) bool {
+					return false
+				},
 			},
-			CreateFunc: func(e event.CreateEvent) bool {
-				return true
-			},
-			DeleteFunc: func(e event.DeleteEvent) bool {
-				return false
-			},
-			GenericFunc: func(e event.GenericEvent) bool {
-				return false
-			},
-		},
-	)
+		)
+	}
 
 	subResources := []client.Object{
 		&certmanagerV1.Certificate{},
