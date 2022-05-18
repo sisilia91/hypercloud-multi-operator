@@ -265,8 +265,6 @@ func (r *ClusterManagerReconciler) reconcile(ctx context.Context, clusterManager
 	// 공통적으로 수행
 	phases = append(
 		phases,
-		// Traefik 을 통하기 위한 리소스인 certificate, ingress, middleware 를 생성한다.
-		r.CreateTraefikResources,
 		// Argocd 연동을 위해 필요한 정보를 kube-config 로 부터 가져와 secret 을 생성한다.
 		r.CreateArgocdClusterSecret,
 		// single cluster 의 api gateway service 의 주소로 gateway service 생성
@@ -276,6 +274,8 @@ func (r *ClusterManagerReconciler) reconcile(ctx context.Context, clusterManager
 		r.CreateHyperauthClient,
 		// hyperregistry domain 을 single cluster 의 ingress 로 부터 가져와 oidc 연동설정
 		r.SetHyperregistryOidcConfig,
+		// Traefik 을 통하기 위한 리소스인 certificate, ingress, middleware 를 생성한다.
+		r.CreateTraefikResources,
 	)
 
 	res := ctrl.Result{}
@@ -366,7 +366,8 @@ func (r *ClusterManagerReconciler) reconcilePhase(_ context.Context, clusterMana
 		}
 	}
 
-	if clusterManager.Status.Ready {
+	// if clusterManager.Status.Ready {
+	if clusterManager.Status.TraefikReady {
 		if clusterManager.Labels[clusterV1alpha1.LabelKeyClmClusterType] == clusterV1alpha1.ClusterTypeRegistered {
 			clusterManager.Status.SetTypedPhase(clusterV1alpha1.ClusterManagerPhaseRegistered)
 		} else {
