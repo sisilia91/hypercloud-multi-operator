@@ -9,7 +9,9 @@ require (
 	github.com/kubernetes-sigs/service-catalog v0.3.1
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.15.0
+	github.com/sykesm/zap-logfmt v0.0.4
 	github.com/traefik/traefik/v2 v2.5.4
+	go.uber.org/zap v1.19.0
 	k8s.io/api v0.22.2
 	k8s.io/apimachinery v0.22.2
 	k8s.io/client-go v0.22.2
