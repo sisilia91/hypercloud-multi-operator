@@ -79,7 +79,8 @@ type RoleConfig struct {
 }
 
 type UserConfig struct {
-	Id string `json:"id,omitempty"`
+	Id    string `json:"id,omitempty"`
+	Email string `json:"email,omitempty"`
 }
 
 type ClientScopeMappingConfig struct {

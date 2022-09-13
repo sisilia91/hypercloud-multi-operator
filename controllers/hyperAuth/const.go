@@ -32,6 +32,7 @@ const (
 	KEYCLOAK_ADMIN_SERVICE_CREATE_GROUP                   = "/auth/admin/realms/tmax/groups"
 	KEYCLOAK_ADMIN_SERVICE_DELETE_GROUP                   = "/auth/admin/realms/tmax/groups/@@groupId@@"
 	KEYCLOAK_ADMIN_SERVICE_ADD_GROUP_TO_USER              = "/auth/admin/realms/tmax/users/@@userId@@/groups/@@groupId@@"
+	KEYCLOAK_ADMIN_SERVICE_GET_USERS                      = "/auth/admin/realms/tmax/users"
 	// hyperauth api
 	HYPERAUTH_SERVICE_GET_USER_ID_BY_EMAIL = "/auth/realms/tmax/user/@@userEmail@@?token=@@token@@"
 )

@@ -244,11 +244,7 @@ func GetUserIdByEmail(userEmail string, secret *coreV1.Secret) (string, error) {
 		return "", err
 	}
 
-	params := map[string]string{
-		"userEmail": userEmail,
-		"token":     strings.Replace(token, "Bearer ", "", 1),
-	}
-	url := SetServiceDomainURI(HYPERAUTH_SERVICE_GET_USER_ID_BY_EMAIL, params)
+	url := SetServiceDomainURI(KEYCLOAK_ADMIN_SERVICE_GET_USERS, nil)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
@@ -267,16 +263,19 @@ func GetUserIdByEmail(userEmail string, secret *coreV1.Secret) (string, error) {
 		return "", fmt.Errorf("failed to get user: " + string(reqDump) + "\n" + resp.Status)
 	}
 
-	respJson := &UserConfig{}
+	respJson := &[]UserConfig{}
 	err = json.NewDecoder(resp.Body).Decode(respJson)
 	if err != nil {
 		return "", err
 	}
-	if respJson == nil {
-		return "", HyperAuthError{NotFound: true, Type: RESOURCE_TYPE_USER_EMAIL, Name: userEmail}
+
+	for _, data := range *respJson {
+		if data.Email == userEmail {
+			return data.Id, nil
+		}
 	}
 
-	return respJson.Id, nil
+	return "", HyperAuthError{NotFound: true, Type: RESOURCE_TYPE_USER_EMAIL, Name: userEmail}
 }
 
 func GetClientRoleIdByRoleName(clientId string, roleName string, secret *coreV1.Secret) (string, error) {
