@@ -95,6 +95,19 @@ func (r *ClusterRegistrationReconciler) CreateKubeconfigSecret(ctx context.Conte
 	log := r.Log.WithValues("ClusterRegistration", ClusterRegistration.GetNamespacedName())
 	log.Info("Start to reconcile phase for CreateKubeconfigSecret")
 
+	key := types.NamespacedName{
+		Name:      ClusterRegistration.Spec.ClusterName,
+		Namespace: ClusterRegistration.Namespace,
+	}
+	clm := &clusterV1alpha1.ClusterManager{}
+	if err := r.Get(context.TODO(), key, clm); errors.IsNotFound(err) {
+		log.Info("Wait for creating cluster manager")
+		return ctrl.Result{}, err
+	} else if err != nil {
+		log.Error(err, "Failed to get cluster manager")
+		return ctrl.Result{}, err
+	}
+
 	decodedKubeConfig, _ := b64.StdEncoding.DecodeString(ClusterRegistration.Spec.KubeConfig)
 	kubeConfig, err := clientcmd.Load(decodedKubeConfig)
 	if err != nil {
@@ -110,7 +123,7 @@ func (r *ClusterRegistrationReconciler) CreateKubeconfigSecret(ctx context.Conte
 	}
 
 	kubeconfigSecretName := ClusterRegistration.Spec.ClusterName + util.KubeconfigSuffix
-	key := types.NamespacedName{
+	key = types.NamespacedName{
 		Name:      kubeconfigSecretName,
 		Namespace: ClusterRegistration.Namespace,
 	}
@@ -154,8 +167,7 @@ func (r *ClusterRegistrationReconciler) CreateKubeconfigSecret(ctx context.Conte
 }
 
 func (r *ClusterRegistrationReconciler) CreateClusterManager(ctx context.Context, ClusterRegistration *clusterV1alpha1.ClusterRegistration) (ctrl.Result, error) {
-	if !ClusterRegistration.Status.SecretReady ||
-		ClusterRegistration.Status.Phase == clusterV1alpha1.ClusterRegistrationPhaseRegistered {
+	if ClusterRegistration.Status.Phase == clusterV1alpha1.ClusterRegistrationPhaseRegistered {
 		return ctrl.Result{}, nil
 	}
 	log := r.Log.WithValues("ClusterRegistration", ClusterRegistration.GetNamespacedName())
@@ -178,7 +190,7 @@ func (r *ClusterRegistrationReconciler) CreateClusterManager(ctx context.Context
 					util.AnnotationKeyOwner:                   ClusterRegistration.Annotations[util.AnnotationKeyCreator],
 					util.AnnotationKeyCreator:                 ClusterRegistration.Annotations[util.AnnotationKeyCreator],
 					clusterV1alpha1.AnnotationKeyClmApiserver: endpoint,
-					clusterV1alpha1.AnnotationKeyClmDomain:    os.Getenv("HC_DOMAIN"),
+					clusterV1alpha1.AnnotationKeyClmDomain:    os.Getenv(util.HC_DOMAIN),
 				},
 				Labels: map[string]string{
 					clusterV1alpha1.LabelKeyClmClusterType: clusterV1alpha1.ClusterTypeRegistered,

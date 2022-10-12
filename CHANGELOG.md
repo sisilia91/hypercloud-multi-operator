@@ -1,6 +1,79 @@
 # HyperCloud-Multi-Operator changelog!!
 All notable changes to this project will be documented in this file.
 
+<!-------------------- v5.0.34.3 start -------------------->
+
+## HyperCloud-Multi-Operator_5.0.34.3 (2022. 10. 12. (수) 10:51:34 KST)
+
+### Added
+
+### Changed
+  - [mod] bind-address 0.0.0.0으로 변경 by sjoh0704
+
+### Fixed
+
+### CRD yaml
+
+### Etc
+
+<!--------------------- v5.0.34.3 end --------------------->
+
+<!-------------------- v5.0.34.2 start -------------------->
+
+## HyperCloud-Multi-Operator_5.0.34.2 (2022. 09. 30. (금) 15:37:17 KST)
+
+### Added
+
+### Changed
+  - [mod] single cluster에 hyperauth tls certificate 생성하는 로직 제거 by sjoh0704
+
+### Fixed
+
+### CRD yaml
+
+### Etc
+
+<!--------------------- v5.0.34.2 end --------------------->
+
+<!-------------------- v5.0.34.1 start -------------------->
+
+## HyperCloud-Multi-Operator_5.0.34.1 (2022. 09. 29. (목) 15:43:23 KST)
+
+### Added
+  - [feat] 필요 환경변수가 있는지 check하는 기능 추가 by sjoh0704
+
+### Changed
+  - [mod] clustertemplate 내 hyperauth 변수 처리 by sjoh0704
+
+### Fixed
+
+### CRD yaml
+
+### Etc
+
+<!--------------------- v5.0.34.1 end --------------------->
+
+<!-------------------- v5.0.34.0 start -------------------->
+
+## HyperCloud-Multi-Operator_5.0.34.0 (2022. 09. 21. (수) 16:09:17 KST)
+
+### Added
+
+### Changed
+  - [mod] fix errors in delete reconcilation by seung
+  - [mod] kubeconfig delete logic 변경 및 cluster registration delete logic 변경 by seung
+  - [mod] kiali hyperauth 연동시 default client scope로 생성 by seung
+  - [mod] fix bug in get user-id by email api call by seung
+  - [mod] hyperauth user api 대신 keycloak user api를 사용하도록 변경 by seung
+
+### Fixed
+
+### CRD yaml
+
+### Etc
+
+<!--------------------- v5.0.34.0 end --------------------->
+
 <!-------------------- v5.0.33.1 start -------------------->
 
 ## HyperCloud-Multi-Operator_5.0.33.1 (2022. 09. 08. (목) 16:37:47 KST)

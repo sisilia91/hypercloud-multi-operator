@@ -2,13 +2,14 @@ package controllers
 
 import (
 	"context"
+	"os"
+
 	claimV1alpha1 "github.com/tmax-cloud/hypercloud-multi-operator/apis/claim/v1alpha1"
 	clusterV1alpha1 "github.com/tmax-cloud/hypercloud-multi-operator/apis/cluster/v1alpha1"
 	"github.com/tmax-cloud/hypercloud-multi-operator/controllers/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"os"
 )
 
 func (r *ClusterClaimReconciler) CreateClusterManager(ctx context.Context, cc *claimV1alpha1.ClusterClaim) error {
@@ -33,7 +34,7 @@ func (r *ClusterClaimReconciler) CreateClusterManager(ctx context.Context, cc *c
 				Annotations: map[string]string{
 					"owner":                                cc.Annotations[util.AnnotationKeyCreator],
 					"creator":                              cc.Annotations[util.AnnotationKeyCreator],
-					clusterV1alpha1.AnnotationKeyClmDomain: os.Getenv("HC_DOMAIN"),
+					clusterV1alpha1.AnnotationKeyClmDomain: os.Getenv(util.HC_DOMAIN),
 				},
 			},
 			Spec: clusterV1alpha1.ClusterManagerSpec{

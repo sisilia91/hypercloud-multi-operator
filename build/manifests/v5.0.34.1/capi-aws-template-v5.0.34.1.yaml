@@ -63,7 +63,7 @@ objects:
             # audit-webhook-config-file: /etc/kubernetes/pki/audit-webhook-config
             # audit-webhook-mode: batch
             cloud-provider: aws
-            # oidc-ca-file: /etc/kubernetes/pki/hyperauth.crt
+            oidc-ca-file: /etc/kubernetes/pki/hyperauth.crt
             oidc-client-id: hypercloud5
             oidc-groups-claim: group
             oidc-issuer-url: ${HyperAuthUrl}
@@ -72,12 +72,12 @@ objects:
         controllerManager:
           extraArgs:
             cloud-provider: aws
-      # files:
-      # - content: |
-      #     ${HyperAuthCert}
-      #   owner: root:root
-      #   path: /etc/kubernetes/pki/hyperauth.crt
-      #   permissions: "0644"
+      files:
+      - content: |
+          ${HyperAuthCert}
+        owner: root:root
+        path: /etc/kubernetes/pki/hyperauth.crt
+        permissions: "0644"
       # - content: |
       #     apiVersion: v1
       #     kind: Config
@@ -188,8 +188,6 @@ objects:
       - cp /etc/kubernetes/admin.conf $HOME/.kube/config
       - chown $USER:$USER $HOME/.kube/config
       - kubectl apply -f https://docs.projectcalico.org/archive/v3.16/manifests/calico.yaml
-      - sed -i 's/--bind-address=127.0.0.1/--bind-address=0.0.0.0/g' /etc/kubernetes/manifests/kube-controller-manager.yaml || echo
-      - sed -i 's/--bind-address=127.0.0.1/--bind-address=0.0.0.0/g' /etc/kubernetes/manifests/kube-scheduler.yaml || echo
     replicas: ${MasterNum}
     version: ${KubernetesVersion}
 - apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
@@ -320,12 +318,12 @@ parameters:
   required: false
   value: hyperauth.tmax.co.kr
   valueType: string
-# - description: HyperAuth tls Certifcate
-#   displayName: HyperAuth Cert
-#   name: HyperAuthCert
-#   required: false
-#   value: xxxx
-#   valueType: string
+- description: HyperAuth tls Certifcate
+  displayName: HyperAuth Cert
+  name: HyperAuthCert
+  required: false
+  value: xxxx
+  valueType: string
 recommend: true
 shortDescription: Cluster template for CAPI provider AWS
 urlDescription: ""

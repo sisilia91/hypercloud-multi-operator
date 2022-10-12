@@ -17,6 +17,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 
@@ -37,6 +38,24 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
+
+func SetApplicationLink(c *clusterV1alpha1.ClusterManager, subdomain string) {
+	c.Status.ApplicationLink = strings.Join(
+		[]string{
+			"https://",
+			subdomain,
+			".",
+			os.Getenv(util.HC_DOMAIN),
+			"/applications/",
+			c.GetNamespacedPrefix(),
+			"-applications?node=argoproj.io/Application/argocd/",
+			c.GetNamespacedPrefix(),
+			"-applications/0&resource=",
+			"",
+		},
+		"",
+	)
+}
 
 func (r *ClusterManagerReconciler) GetKubeconfigSecret(clusterManager *clusterV1alpha1.ClusterManager) (*coreV1.Secret, error) {
 	log := r.Log.WithValues("clustermanager", clusterManager.GetNamespacedName())
@@ -527,7 +546,6 @@ func (r *ClusterManagerReconciler) CreateApplication(clusterManager *clusterV1al
 		}
 
 		log.Info("Create ArgoCD Application successfully")
-		ctrl.SetControllerReference(clusterManager, application, r.Scheme)
 		return nil
 	}
 

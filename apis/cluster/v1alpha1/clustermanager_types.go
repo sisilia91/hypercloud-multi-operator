@@ -15,12 +15,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"os"
-	"strings"
-
 	coreV1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"strings"
 )
 
 // type NodeInfo struct {
@@ -253,22 +251,4 @@ func (c *ClusterManager) GetNamespacedName() types.NamespacedName {
 
 func (c *ClusterManager) GetNamespacedPrefix() string {
 	return strings.Join([]string{c.Namespace, c.Name}, "-")
-}
-
-func (c *ClusterManager) SetApplicationLink(subdomain string) {
-	c.Status.ApplicationLink = strings.Join(
-		[]string{
-			"https://",
-			subdomain,
-			".",
-			os.Getenv("HC_DOMAIN"),
-			"/applications/",
-			c.GetNamespacedPrefix(),
-			"-applications?node=argoproj.io/Application/argocd/",
-			c.GetNamespacedPrefix(),
-			"-applications/0&resource=",
-			"",
-		},
-		"",
-	)
 }

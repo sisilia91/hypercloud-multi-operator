@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"math/rand"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -140,4 +141,18 @@ func GetProviderName(provider string) (string, error) {
 	}
 
 	return providerNameLogo[provider], nil
+}
+
+func CheckRequiredEnvPreset() error {
+	notExistEnvList := []string{}
+	for _, env := range GetRequiredEnvPreset() {
+		if os.Getenv(env) == "" {
+			notExistEnvList = append(notExistEnvList, env)
+		}
+	}
+
+	if len(notExistEnvList) != 0 {
+		return fmt.Errorf("%s env not exist", strings.Join(notExistEnvList, ", "))
+	}
+	return nil
 }

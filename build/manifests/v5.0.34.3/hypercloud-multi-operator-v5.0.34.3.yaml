@@ -1,0 +1,1250 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: hypercloud5-system/hypercloud-multi-operator-serving-cert
+    controller-gen.kubebuilder.io/version: v0.6.2
+  name: clusterclaims.claim.tmax.io
+spec:
+  group: claim.tmax.io
+  names:
+    kind: ClusterClaim
+    listKind: ClusterClaimList
+    plural: clusterclaims
+    shortNames:
+    - cc
+    singular: clusterclaim
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Status
+      type: string
+    - jsonPath: .status.reason
+      name: Reason
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ClusterClaim is the Schema for the clusterclaims API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ClusterClaimSpec defines the desired state of ClusterClaim
+            properties:
+              clusterName:
+                description: The name of the cluster to be created
+                type: string
+              masterNum:
+                description: The number of master node
+                type: integer
+              provider:
+                description: The type of provider
+                enum:
+                - AWS
+                - vSphere
+                type: string
+              providerAwsSpec:
+                description: Provider Aws Spec
+                properties:
+                  masterType:
+                    description: 'The type of VM for master node. Example: m4.xlarge.
+                      see: https://aws.amazon.com/ec2/instance-types'
+                    type: string
+                  region:
+                    description: The region where VM is working
+                    enum:
+                    - ap-northeast-1
+                    - ap-northeast-2
+                    - ap-south-1
+                    - ap-southeast-1
+                    - ap-northeast-2
+                    - ca-central-1
+                    - eu-central-1
+                    - eu-west-1
+                    - eu-west-2
+                    - eu-west-3
+                    - sa-east-1
+                    - us-east-1
+                    - us-east-2
+                    - us-west-1
+                    - us-west-2
+                    type: string
+                  sshKey:
+                    description: The ssh key info to access VM
+                    type: string
+                  workerType:
+                    description: 'The type of VM for master node. Example: m4.xlarge.
+                      see: https://aws.amazon.com/ec2/instance-types'
+                    type: string
+                type: object
+              providerVsphereSpec:
+                description: Provider vSphere Spec
+                properties:
+                  podCidr:
+                    description: The internal IP address cider block for pods
+                    type: string
+                  vcenterCpuNum:
+                    description: The number of cpus for vm
+                    type: integer
+                  vcenterDataCenter:
+                    description: The name of data center
+                    type: string
+                  vcenterDataStore:
+                    description: The name of data store
+                    type: string
+                  vcenterDiskSize:
+                    description: 'The disk size for vm, write as GB without unit.
+                      Example: 25'
+                    type: integer
+                  vcenterFolder:
+                    description: The name of folder
+                    type: string
+                  vcenterId:
+                    description: The user id of VCSA
+                    type: string
+                  vcenterIp:
+                    description: The IP address of vCenter Server Application(VCSA)
+                    type: string
+                  vcenterKcpIp:
+                    description: The IP address of control plane for remote cluster(vip)
+                    type: string
+                  vcenterMemSize:
+                    description: 'The memory size for vm, write as MB without unit.
+                      Example: 8192'
+                    type: integer
+                  vcenterNetwork:
+                    description: The name of network
+                    type: string
+                  vcenterPassword:
+                    description: The password of VCSA
+                    type: string
+                  vcenterResourcePool:
+                    description: The name of resource pool
+                    type: string
+                  vcenterTemplate:
+                    description: The template name for cloud init
+                    type: string
+                  vcenterThumbprint:
+                    description: The TLS thumbprint of machine certificate
+                    type: string
+                type: object
+              version:
+                description: The version of kubernetes
+                type: string
+              workerNum:
+                description: The number of worker node
+                type: integer
+            required:
+            - clusterName
+            - masterNum
+            - provider
+            - version
+            - workerNum
+            type: object
+          status:
+            description: ClusterClaimStatus defines the observed state of ClusterClaim
+            properties:
+              message:
+                type: string
+              phase:
+                enum:
+                - Awaiting
+                - Admitted
+                - Approved
+                - Rejected
+                - Error
+                - ClusterDeleted
+                - Cluster Deleted
+                type: string
+              reason:
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: hypercloud5-system/hypercloud-multi-operator-serving-cert
+    controller-gen.kubebuilder.io/version: v0.6.2
+  name: clustermanagers.cluster.tmax.io
+spec:
+  group: cluster.tmax.io
+  names:
+    kind: ClusterManager
+    listKind: ClusterManagerList
+    plural: clustermanagers
+    shortNames:
+    - clm
+    singular: clustermanager
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: provider
+      jsonPath: .spec.provider
+      name: Provider
+      type: string
+    - description: k8s version
+      jsonPath: .spec.version
+      name: Version
+      type: string
+    - description: is running
+      jsonPath: .status.ready
+      name: Ready
+      type: string
+    - description: replica number of master
+      jsonPath: .spec.masterNum
+      name: MasterNum
+      type: string
+    - description: running of master
+      jsonPath: .status.masterRun
+      name: MasterRun
+      type: string
+    - description: replica number of worker
+      jsonPath: .spec.workerNum
+      name: WorkerNum
+      type: string
+    - description: running of worker
+      jsonPath: .status.workerRun
+      name: WorkerRun
+      type: string
+    - description: cluster status phase
+      jsonPath: .status.phase
+      name: Phase
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ClusterManager is the Schema for the clustermanagers API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          awsSpec:
+            description: ProviderAwsSpec defines
+            properties:
+              masterType:
+                description: The type of VM for master node
+                type: string
+              region:
+                description: The region where VM is working
+                type: string
+              sshKey:
+                description: The ssh key info to access VM
+                type: string
+              workerType:
+                description: The type of VM for worker node
+                type: string
+            type: object
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ClusterManagerSpec defines the desired state of ClusterManager
+            properties:
+              masterNum:
+                description: The number of master node
+                type: integer
+              provider:
+                description: The name of cloud provider where VM is created
+                type: string
+              version:
+                description: The version of kubernetes
+                type: string
+              workerNum:
+                description: The number of worker node
+                type: integer
+            required:
+            - masterNum
+            - provider
+            - version
+            - workerNum
+            type: object
+          status:
+            description: ClusterManagerStatus defines the observed state of ClusterManager
+            properties:
+              applicationLink:
+                type: string
+              argoReady:
+                type: boolean
+              authClientReady:
+                type: boolean
+              controlPlaneEndpoint:
+                type: string
+              controlPlaneReady:
+                type: boolean
+              gatewayReady:
+                type: boolean
+              gatewayReadyMigration:
+                type: boolean
+              masterRun:
+                type: integer
+              nodeInfo:
+                items:
+                  description: NodeSystemInfo is a set of ids/uuids to uniquely identify
+                    the node.
+                  properties:
+                    architecture:
+                      description: The Architecture reported by the node
+                      type: string
+                    bootID:
+                      description: Boot ID reported by the node.
+                      type: string
+                    containerRuntimeVersion:
+                      description: ContainerRuntime Version reported by the node through
+                        runtime remote API (e.g. docker://1.5.0).
+                      type: string
+                    kernelVersion:
+                      description: Kernel Version reported by the node from 'uname
+                        -r' (e.g. 3.16.0-0.bpo.4-amd64).
+                      type: string
+                    kubeProxyVersion:
+                      description: KubeProxy Version reported by the node.
+                      type: string
+                    kubeletVersion:
+                      description: Kubelet Version reported by the node.
+                      type: string
+                    machineID:
+                      description: 'MachineID reported by the node. For unique machine
+                        identification in the cluster this field is preferred. Learn
+                        more from man(5) machine-id: http://man7.org/linux/man-pages/man5/machine-id.5.html'
+                      type: string
+                    operatingSystem:
+                      description: The Operating System reported by the node
+                      type: string
+                    osImage:
+                      description: OS Image reported by the node from /etc/os-release
+                        (e.g. Debian GNU/Linux 7 (wheezy)).
+                      type: string
+                    systemUUID:
+                      description: SystemUUID reported by the node. For unique machine
+                        identification MachineID is preferred. This field is specific
+                        to Red Hat hosts https://access.redhat.com/documentation/en-us/red_hat_subscription_management/1/html/rhsm/uuid
+                      type: string
+                  required:
+                  - architecture
+                  - bootID
+                  - containerRuntimeVersion
+                  - kernelVersion
+                  - kubeProxyVersion
+                  - kubeletVersion
+                  - machineID
+                  - operatingSystem
+                  - osImage
+                  - systemUUID
+                  type: object
+                type: array
+              openSearchReady:
+                type: boolean
+              phase:
+                type: string
+              prometheusReady:
+                description: will be deprecated
+                type: boolean
+              provider:
+                type: string
+              ready:
+                type: boolean
+              traefikReady:
+                type: boolean
+              version:
+                type: string
+              workerRun:
+                type: integer
+            type: object
+          vsphereSpec:
+            description: ProviderVsphereSpec defines
+            properties:
+              podCidr:
+                description: The internal IP address cider block for pods
+                type: string
+              vcenterCpuNum:
+                description: The number of cpus for vm
+                type: integer
+              vcenterDataCenter:
+                description: The name of data center
+                type: string
+              vcenterDataStore:
+                description: The name of data store
+                type: string
+              vcenterDiskSize:
+                description: The disk size for vm
+                type: integer
+              vcenterFolder:
+                description: The name of folder
+                type: string
+              vcenterId:
+                description: The user id of VCSA
+                type: string
+              vcenterIp:
+                description: The IP address of vCenter Server Application(VCSA)
+                type: string
+              vcenterKcpIp:
+                description: The IP address of control plane for remote cluster(vip)
+                type: string
+              vcenterMemSize:
+                description: The memory size for vm
+                type: integer
+              vcenterNetwork:
+                description: The name of network
+                type: string
+              vcenterPassword:
+                description: The password of VCSA
+                type: string
+              vcenterResourcePool:
+                description: The name of resource pool
+                type: string
+              vcenterTemplate:
+                description: The template name for cloud init
+                type: string
+              vcenterThumbprint:
+                description: The TLS thumbprint of machine certificate
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: hypercloud5-system/hypercloud-multi-operator-serving-cert
+    controller-gen.kubebuilder.io/version: v0.6.2
+  name: clusterregistrations.cluster.tmax.io
+spec:
+  group: cluster.tmax.io
+  names:
+    kind: ClusterRegistration
+    listKind: ClusterRegistrationList
+    plural: clusterregistrations
+    shortNames:
+    - clr
+    singular: clusterregistration
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: cluster status phase
+      jsonPath: .status.phase
+      name: Phase
+      type: string
+    - description: cluster status reason
+      jsonPath: .status.reason
+      name: Reason
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ClusterRegistration is the Schema for the clusterregistrations
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ClusterRegistrationSpec defines the desired state of ClusterRegistration
+            properties:
+              clusterName:
+                description: The name of the cluster to be registered
+                type: string
+              kubeConfig:
+                description: The kubeconfig file of the cluster to be registered
+                format: data-url
+                type: string
+            required:
+            - clusterName
+            - kubeConfig
+            type: object
+          status:
+            description: ClusterRegistrationStatus defines the observed state of ClusterRegistration
+            properties:
+              clusterValidated:
+                type: boolean
+              masterNum:
+                type: integer
+              masterRun:
+                type: integer
+              nodeInfo:
+                items:
+                  description: NodeSystemInfo is a set of ids/uuids to uniquely identify
+                    the node.
+                  properties:
+                    architecture:
+                      description: The Architecture reported by the node
+                      type: string
+                    bootID:
+                      description: Boot ID reported by the node.
+                      type: string
+                    containerRuntimeVersion:
+                      description: ContainerRuntime Version reported by the node through
+                        runtime remote API (e.g. docker://1.5.0).
+                      type: string
+                    kernelVersion:
+                      description: Kernel Version reported by the node from 'uname
+                        -r' (e.g. 3.16.0-0.bpo.4-amd64).
+                      type: string
+                    kubeProxyVersion:
+                      description: KubeProxy Version reported by the node.
+                      type: string
+                    kubeletVersion:
+                      description: Kubelet Version reported by the node.
+                      type: string
+                    machineID:
+                      description: 'MachineID reported by the node. For unique machine
+                        identification in the cluster this field is preferred. Learn
+                        more from man(5) machine-id: http://man7.org/linux/man-pages/man5/machine-id.5.html'
+                      type: string
+                    operatingSystem:
+                      description: The Operating System reported by the node
+                      type: string
+                    osImage:
+                      description: OS Image reported by the node from /etc/os-release
+                        (e.g. Debian GNU/Linux 7 (wheezy)).
+                      type: string
+                    systemUUID:
+                      description: SystemUUID reported by the node. For unique machine
+                        identification MachineID is preferred. This field is specific
+                        to Red Hat hosts https://access.redhat.com/documentation/en-us/red_hat_subscription_management/1/html/rhsm/uuid
+                      type: string
+                  required:
+                  - architecture
+                  - bootID
+                  - containerRuntimeVersion
+                  - kernelVersion
+                  - kubeProxyVersion
+                  - kubeletVersion
+                  - machineID
+                  - operatingSystem
+                  - osImage
+                  - systemUUID
+                  type: object
+                type: array
+              phase:
+                type: string
+              provider:
+                type: string
+              ready:
+                type: boolean
+              reason:
+                type: string
+              secretReady:
+                type: boolean
+              version:
+                type: string
+              workerNum:
+                type: integer
+              workerRun:
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hypercloud-multi-operator-controller-manager
+  namespace: hypercloud5-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hypercloud-multi-operator-leader-election-role
+  namespace: hypercloud5-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - configmaps/status
+  verbs:
+  - get
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: hypercloud-multi-operator-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - secrets
+  - serviceaccounts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - post
+  - update
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - claim.tmax.io
+  resources:
+  - clusterclaims
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - claim.tmax.io
+  resources:
+  - clusterclaims/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - cluster.tmax.io
+  resources:
+  - clustermanagers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cluster.tmax.io
+  resources:
+  - clustermanagers/status
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cluster.tmax.io
+  resources:
+  - clusterregistrations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cluster.tmax.io
+  resources:
+  - clusterregistrations/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - cluster.x-k8s.io
+  resources:
+  - clusters
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cluster.x-k8s.io
+  resources:
+  - machinedeployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cluster.x-k8s.io
+  resources:
+  - machinedeployments/status
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - controlplane.cluster.x-k8s.io
+  resources:
+  - kubeadmcontrolplanes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - controlplane.cluster.x-k8s.io
+  resources:
+  - kubeadmcontrolplanes/status
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  - clusterroles
+  - rolebindings
+  - roles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - roles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - servicecatalog.k8s.io
+  resources:
+  - serviceinstances
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - servicecatalog.k8s.io
+  resources:
+  - serviceinstances/status
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - traefik.containo.us
+  resources:
+  - middlewares
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hypercloud-multi-operator-metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hypercloud-multi-operator-proxy-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hypercloud-multi-operator-leader-election-rolebinding
+  namespace: hypercloud5-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hypercloud-multi-operator-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: hypercloud-multi-operator-controller-manager
+  namespace: hypercloud5-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hypercloud-multi-operator-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: hypercloud-multi-operator-manager-role
+subjects:
+- kind: ServiceAccount
+  name: hypercloud-multi-operator-controller-manager
+  namespace: hypercloud5-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hypercloud-multi-operator-proxy-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: hypercloud-multi-operator-proxy-role
+subjects:
+- kind: ServiceAccount
+  name: hypercloud-multi-operator-controller-manager
+  namespace: hypercloud5-system
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    kubernetes.io/service-account.name: hypercloud-multi-operator-controller-manager
+  name: hypercloud-multi-operator-controller-manager-token
+  namespace: hypercloud5-system
+type: kubernetes.io/service-account-token
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    hypercloud: multi-operator
+  name: hypercloud-multi-operator-controller-manager-metrics-service
+  namespace: hypercloud5-system
+spec:
+  ports:
+  - name: https
+    port: 8443
+    targetPort: https
+  selector:
+    hypercloud: multi-operator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hypercloud-multi-operator-webhook-service
+  namespace: hypercloud5-system
+spec:
+  ports:
+  - port: 443
+    targetPort: 9443
+  selector:
+    hypercloud: multi-operator
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    hypercloud: multi-operator
+  name: hypercloud-multi-operator-controller-manager
+  namespace: hypercloud5-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      hypercloud: multi-operator
+  template:
+    metadata:
+      labels:
+        hypercloud: multi-operator
+    spec:
+      containers:
+      - args:
+        - --metrics-addr=127.0.0.1:8080
+        - --enable-leader-election
+        - --zap-log-level=info
+        command:
+        - /manager
+        env:
+        - name: HC_DOMAIN
+          value: ${custom_domain}
+        - name: AUTH_CLIENT_SECRET
+          value: ${auth_client_secret}
+        - name: AUTH_SUBDOMAIN
+          value: ${auth_subdomain}
+        image: tmaxcloudck/hypercloud-multi-operator:b5.0.34.3
+        name: manager
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
+        - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+          name: hypercloud-multi-operator-controller-manager-token
+          readOnly: true
+      - args:
+        - --secure-listen-address=0.0.0.0:8443
+        - --upstream=http://127.0.0.1:8080/
+        - --logtostderr=true
+        - --v=10
+        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
+        name: kube-rbac-proxy
+        ports:
+        - containerPort: 8443
+          name: https
+        resources:
+          limits:
+            cpu: 100m
+            memory: 30Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+        volumeMounts:
+        - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+          name: hypercloud-multi-operator-controller-manager-token
+          readOnly: true
+      serviceAccountName: hypercloud-multi-operator-controller-manager
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: hypercloud-multi-operator-webhook-server-cert
+      - name: hypercloud-multi-operator-controller-manager-token
+        secret:
+          defaultMode: 420
+          secretName: hypercloud-multi-operator-controller-manager-token
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: hypercloud-multi-operator-serving-cert
+  namespace: hypercloud5-system
+spec:
+  dnsNames:
+  - hypercloud-multi-operator-webhook-service.hypercloud5-system.svc
+  - hypercloud-multi-operator-webhook-service.hypercloud5-system.svc.cluster.local
+  isCA: false
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: tmaxcloud-issuer
+  secretName: hypercloud-multi-operator-webhook-server-cert
+  usages:
+  - digital signature
+  - key encipherment
+  - server auth
+  - client auth
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: hypercloud5-system/hypercloud-multi-operator-serving-cert
+  name: hypercloud-multi-operator-mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1beta1
+  - v1
+  clientConfig:
+    service:
+      name: hypercloud-multi-operator-webhook-service
+      namespace: hypercloud5-system
+      path: /mutate-claim-tmax-io-v1alpha1-clusterclaim
+  failurePolicy: Fail
+  name: mutation.webhook.clusterclaim
+  rules:
+  - apiGroups:
+    - claim.tmax.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - UPDATE
+    resources:
+    - clusterclaims
+  sideEffects: NoneOnDryRun
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: hypercloud5-system/hypercloud-multi-operator-serving-cert
+  name: hypercloud-multi-operator-validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1beta1
+  - v1
+  clientConfig:
+    service:
+      name: hypercloud-multi-operator-webhook-service
+      namespace: hypercloud5-system
+      path: /validate-claim-tmax-io-v1alpha1-clusterclaim
+  failurePolicy: Fail
+  name: validation.webhook.clusterclaim
+  rules:
+  - apiGroups:
+    - claim.tmax.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - clusterclaims
+    - clusterclaims/status
+  sideEffects: NoneOnDryRun
+- admissionReviewVersions:
+  - v1beta1
+  - v1
+  clientConfig:
+    service:
+      name: hypercloud-multi-operator-webhook-service
+      namespace: hypercloud5-system
+      path: /validate-cluster-tmax-io-v1alpha1-clustermanager
+  failurePolicy: Fail
+  name: validation.webhook.clustermanager
+  rules:
+  - apiGroups:
+    - cluster.tmax.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - UPDATE
+    resources:
+    - clustermanagers
+  sideEffects: NoneOnDryRun
+- admissionReviewVersions:
+  - v1beta1
+  - v1
+  clientConfig:
+    service:
+      name: hypercloud-multi-operator-webhook-service
+      namespace: hypercloud5-system
+      path: /validate-cluster-tmax-io-v1alpha1-clusterregistration
+  failurePolicy: Fail
+  name: validation.webhook.clusterregistration
+  rules:
+  - apiGroups:
+    - cluster.tmax.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - clusterregistrations
+  sideEffects: NoneOnDryRun

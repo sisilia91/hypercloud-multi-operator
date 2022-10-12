@@ -17,48 +17,51 @@ package hyperAuth
 import (
 	"os"
 	"strings"
+
+	"github.com/tmax-cloud/hypercloud-multi-operator/controllers/util"
 )
 
 func GetClientConfigPreset(prefix string) []ClientConfig {
+	AUTH_CLIENT_SECRET := util.AUTH_CLIENT_SECRET
 	configs := []ClientConfig{
 		{
 			ClientId:                  strings.Join([]string{prefix, "kibana"}, "-"),
-			Secret:                    os.Getenv("AUTH_CLIENT_SECRET"),
+			Secret:                    os.Getenv(AUTH_CLIENT_SECRET),
 			DirectAccessGrantsEnabled: true,
 			ImplicitFlowEnabled:       false,
 			RedirectUris:              []string{"*"},
 		},
 		{
 			ClientId:                  strings.Join([]string{prefix, "grafana"}, "-"),
-			Secret:                    os.Getenv("AUTH_CLIENT_SECRET"),
+			Secret:                    os.Getenv(AUTH_CLIENT_SECRET),
 			DirectAccessGrantsEnabled: true,
 			ImplicitFlowEnabled:       false,
 			RedirectUris:              []string{"*"},
 		},
 		{
 			ClientId:                  strings.Join([]string{prefix, "kiali"}, "-"),
-			Secret:                    os.Getenv("AUTH_CLIENT_SECRET"),
+			Secret:                    os.Getenv(AUTH_CLIENT_SECRET),
 			DirectAccessGrantsEnabled: true,
 			ImplicitFlowEnabled:       true,
 			RedirectUris:              []string{"*"},
 		},
 		{
 			ClientId:                  strings.Join([]string{prefix, "jaeger"}, "-"),
-			Secret:                    os.Getenv("AUTH_CLIENT_SECRET"),
+			Secret:                    os.Getenv(AUTH_CLIENT_SECRET),
 			DirectAccessGrantsEnabled: true,
 			ImplicitFlowEnabled:       false,
 			RedirectUris:              []string{"*"},
 		},
 		{
 			ClientId:                  strings.Join([]string{prefix, "hyperregistry"}, "-"),
-			Secret:                    os.Getenv("AUTH_CLIENT_SECRET"),
+			Secret:                    os.Getenv(AUTH_CLIENT_SECRET),
 			DirectAccessGrantsEnabled: true,
 			ImplicitFlowEnabled:       false,
 			RedirectUris:              []string{"*"},
 		},
 		{
 			ClientId:                  strings.Join([]string{prefix, "opensearch"}, "-"),
-			Secret:                    os.Getenv("AUTH_CLIENT_SECRET"),
+			Secret:                    os.Getenv(AUTH_CLIENT_SECRET),
 			DirectAccessGrantsEnabled: true,
 			ImplicitFlowEnabled:       false,
 			RedirectUris:              []string{"*"},

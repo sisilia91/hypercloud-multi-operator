@@ -93,10 +93,10 @@ func (r *ClusterRegistrationReconciler) reconcile(ctx context.Context, ClusterRe
 		// single cluster 의 kube-config 가 올바른지 체크하기 위해, kube-config 를 사용해 node 들을 가져올수있는지 확인한다.
 		// 또한, 중복성 체크를 위해 해당 name 과 namespace 를 가지는 cluster manager 가 이미 있는지 확인한다.
 		r.CheckValidation,
-		// kube-config 를 secret 으로 생성한다.
-		r.CreateKubeconfigSecret,
 		// 해당 cluster 에 대한 cluster manager 를 생성한다.
 		r.CreateClusterManager,
+		// kube-config 를 secret 으로 생성한다.
+		r.CreateKubeconfigSecret,
 	}
 
 	res := ctrl.Result{}
@@ -142,16 +142,15 @@ func (r *ClusterRegistrationReconciler) requeueClusterRegistrationsForClusterMan
 		return nil
 	}
 
-	if clr.Status.Phase != "Success" {
-		log.Info("ClusterRegistration for ClusterManager [" + clr.Spec.ClusterName + "] is already delete... Do not update cc status to delete ")
+	if clr.Status.Phase != clusterV1alpha1.ClusterRegistrationPhaseRegistered {
+		log.Info("ClusterRegistration for ClusterManager [" + clr.Spec.ClusterName + "] is already delete... Do not update cluster registration status to delete ")
 		return nil
 	}
 
 	clr.Status.Phase = clusterV1alpha1.ClusterRegistrationPhaseClusterDeleted
 	clr.Status.Reason = "cluster is deleted"
-	err := r.Status().Update(context.TODO(), clr)
-	if err != nil {
-		log.Error(err, "Failed to update ClusterClaim status")
+	if err := r.Status().Update(context.TODO(), clr); err != nil {
+		log.Error(err, "Failed to update ClusterRegistration status")
 		return nil //??
 	}
 	return nil

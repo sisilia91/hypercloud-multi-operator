@@ -25,6 +25,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/tmax-cloud/hypercloud-multi-operator/controllers/util"
 	coreV1 "k8s.io/api/core/v1"
 )
 
@@ -32,7 +33,7 @@ func SetServiceDomainURI(serviceName string, urlParameter map[string]string) str
 	for key, value := range urlParameter {
 		serviceName = strings.Replace(serviceName, "@@"+key+"@@", value, 1)
 	}
-	return "https://" + os.Getenv("AUTH_SUBDOMAIN") + "." + os.Getenv("HC_DOMAIN") + serviceName
+	return "https://" + os.Getenv(util.AUTH_SUBDOMAIN) + "." + os.Getenv(util.HC_DOMAIN) + serviceName
 }
 
 func GetTokenAsAdmin(secret *coreV1.Secret) (string, error) {
@@ -243,17 +244,17 @@ func GetUserIdByEmail(userEmail string, secret *coreV1.Secret) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	params := map[string]string{
 		"userEmail": userEmail,
-		"token":     strings.Replace(token, "Bearer ", "", 1),
 	}
-	url := SetServiceDomainURI(HYPERAUTH_SERVICE_GET_USER_ID_BY_EMAIL, params)
+
+	url := SetServiceDomainURI(KEYCLOAK_ADMIN_SERVICE_GET_USERS_BY_EMAIL, params)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
 	}
 	req.Header.Add("Authorization", token)
+	req.Header.Add("Content-Type", "application/json")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -264,19 +265,20 @@ func GetUserIdByEmail(userEmail string, secret *coreV1.Secret) (string, error) {
 
 	reqDump, _ := httputil.DumpRequest(req, true)
 	if !IsOK(resp.StatusCode) {
-		return "", fmt.Errorf("failed to get user: " + string(reqDump) + "\n" + resp.Status)
+		return "", fmt.Errorf("failed to get user by email: " + string(reqDump) + "\n" + resp.Status)
 	}
 
-	respJson := &UserConfig{}
+	respJson := &[]UserConfig{}
 	err = json.NewDecoder(resp.Body).Decode(respJson)
 	if err != nil {
 		return "", err
 	}
-	if respJson == nil {
+
+	if respJson == nil || len(*respJson) == 0 {
 		return "", HyperAuthError{NotFound: true, Type: RESOURCE_TYPE_USER_EMAIL, Name: userEmail}
 	}
 
-	return respJson.Id, nil
+	return (*respJson)[0].Id, nil
 }
 
 func GetClientRoleIdByRoleName(clientId string, roleName string, secret *coreV1.Secret) (string, error) {
@@ -537,11 +539,13 @@ func AddClientScopeToClient(config ClientScopeMappingConfig, secret *coreV1.Secr
 		"id":            id,
 		"clientScopeId": clientScopeId,
 	}
-	url := SetServiceDomainURI(KEYCLOAK_ADMIN_SERVICE_ADD_CLIENT_SCOPE_TO_CLIENT, params)
+	url := SetServiceDomainURI(KEYCLOAK_ADMIN_SERVICE_ADD_DEFAULT_CLIENT_SCOPE_TO_CLIENT, params)
 	req, err := http.NewRequest(http.MethodPut, url, nil)
 	if err != nil {
 		return err
 	}
+
+	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", token)
 
 	client := &http.Client{}
