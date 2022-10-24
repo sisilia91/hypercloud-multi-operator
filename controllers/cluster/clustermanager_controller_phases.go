@@ -433,11 +433,17 @@ func (r *ClusterManagerReconciler) CreateArgocdResources(ctx context.Context, cl
 		Secrets(util.KubeNamespace).
 		Get(context.TODO(), util.ArgoServiceAccountTokenSecret, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
-		log.Info("Service account token secret not found. Wait for creating")
+		log.Info("Service account secret not found. Wait for creating")
 		return ctrl.Result{RequeueAfter: requeueAfter10Second}, nil
 	} else if err != nil {
-		log.Error(err, "Failed to get service account token secret")
+		log.Error(err, "Failed to get service account secret")
 		return ctrl.Result{}, err
+	}
+
+	// token secret이 잘들어가 있는지 check
+	if string(tokenSecret.Data["token"]) == "" {
+		log.Info("Service account secret token data not found. Wait for creating")
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// ArgoCD single cluster 연동을 위한 secret에 들어가야 할 데이터를 생성

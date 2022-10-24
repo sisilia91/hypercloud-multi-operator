@@ -1,6 +1,23 @@
 # HyperCloud-Multi-Operator changelog!!
 All notable changes to this project will be documented in this file.
 
+<!-------------------- v5.0.34.4 start -------------------->
+
+## HyperCloud-Multi-Operator_5.0.34.4 (2022. 10. 21. (금) 14:46:21 KST)
+
+### Added
+
+### Changed
+  - [mod] argocd manager token의 data 값을 제대로 받아오지 못하는 error fix by sjoh0704
+
+### Fixed
+
+### CRD yaml
+
+### Etc
+
+<!--------------------- v5.0.34.4 end --------------------->
+
 <!-------------------- v5.0.34.3 start -------------------->
 
 ## HyperCloud-Multi-Operator_5.0.34.3 (2022. 10. 12. (수) 10:51:34 KST)
