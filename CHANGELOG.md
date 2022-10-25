@@ -1,6 +1,23 @@
 # HyperCloud-Multi-Operator changelog!!
 All notable changes to this project will be documented in this file.
 
+<!-------------------- v5.0.34.5 start -------------------->
+
+## HyperCloud-Multi-Operator_5.0.34.5 (2022. 10. 25. (화) 13:46:36 KST)
+
+### Added
+  - [feat] single cluster 생성시 etcd listen-metrics-urls에 master ip 추가 by sjoh0704
+
+### Changed
+
+### Fixed
+
+### CRD yaml
+
+### Etc
+
+<!--------------------- v5.0.34.5 end --------------------->
+
 <!-------------------- v5.0.34.4 start -------------------->
 
 ## HyperCloud-Multi-Operator_5.0.34.4 (2022. 10. 21. (금) 14:46:21 KST)
