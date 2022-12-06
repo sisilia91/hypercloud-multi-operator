@@ -46,16 +46,19 @@ type ClusterClaimSpec struct {
 	// The name of the cluster to be created
 	ClusterName string `json:"clusterName"`
 	// +kubebuilder:validation:Required
-	// The version of kubernetes
+	// +kubebuilder:validation:Pattern:=^v[0-9].[0-9]+.[0-9]+
+	// The version of kubernetes. Example: v1.19.6
 	Version string `json:"version"`
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum:=AWS;vSphere
 	// The type of provider
 	Provider string `json:"provider"`
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Minimum:=1
 	// The number of master node
 	MasterNum int `json:"masterNum"`
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Minimum:=1
 	// The number of worker node
 	WorkerNum int `json:"workerNum"`
 	// Provider Aws Spec
@@ -72,12 +75,19 @@ type AwsClaimSpec struct {
 	Region string `json:"region,omitempty"`
 	// The type of VM for master node. Example: m4.xlarge. see: https://aws.amazon.com/ec2/instance-types
 	MasterType string `json:"masterType,omitempty"`
+	// +kubebuilder:validation:Minimum:=8
+	// The size of VM for master node. Example: 20
+	MasterDiskSize int `json:"masterDiskSize,omitempty"`
 	// The type of VM for master node. Example: m4.xlarge. see: https://aws.amazon.com/ec2/instance-types
 	WorkerType string `json:"workerType,omitempty"`
+	// +kubebuilder:validation:Minimum:=8
+	// The size of VM for worker node. Example: 20
+	WorkerDiskSize int `json:"workerDiskSize,omitempty"`
 }
 
 type VsphereClaimSpec struct {
-	// The internal IP address cider block for pods
+	// The internal IP address cider block for pods. Example: 10.0.0.0/16
+	// +kubebuilder:validation:Pattern:=^[0-9]+.[0-9]+.[0-9]+.[0-9]+\/[0-9]+
 	PodCidr string `json:"podCidr,omitempty"`
 	// The IP address of vCenter Server Application(VCSA)
 	VcenterIp string `json:"vcenterIp,omitempty"`
@@ -99,10 +109,13 @@ type VsphereClaimSpec struct {
 	VcenterResourcePool string `json:"vcenterResourcePool,omitempty"`
 	// The IP address of control plane for remote cluster(vip)
 	VcenterKcpIp string `json:"vcenterKcpIp,omitempty"`
+	// +kubebuilder:validation:Minimum:=2
 	// The number of cpus for vm
 	VcenterCpuNum int `json:"vcenterCpuNum,omitempty"`
+	// +kubebuilder:validation:Minimum:=2048
 	// The memory size for vm, write as MB without unit. Example: 8192
 	VcenterMemSize int `json:"vcenterMemSize,omitempty"`
+	// +kubebuilder:validation:Minimum:=20
 	// The disk size for vm, write as GB without unit. Example: 25
 	VcenterDiskSize int `json:"vcenterDiskSize,omitempty"`
 	// The template name for cloud init

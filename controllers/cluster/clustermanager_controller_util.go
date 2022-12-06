@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -29,15 +30,250 @@ import (
 	util "github.com/tmax-cloud/hypercloud-multi-operator/controllers/util"
 	dynamicv2 "github.com/traefik/traefik/v2/pkg/config/dynamic"
 	traefikV1alpha1 "github.com/traefik/traefik/v2/pkg/provider/kubernetes/crd/traefik/v1alpha1"
+	capiV1alpha3 "sigs.k8s.io/cluster-api/api/v1alpha3"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	servicecatalogv1beta1 "github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog/v1beta1"
 	coreV1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
+
+type Parameters interface {
+	SetParameter(clusterV1alpha1.ClusterManager)
+}
+
+type ClusterParameter struct {
+	Namespace         string
+	ClusterName       string
+	MasterNum         int
+	WorkerNum         int
+	Owner             string
+	KubernetesVersion string
+	HyperAuthUrl      string
+}
+
+func (p *ClusterParameter) SetParameter(clusterManager clusterV1alpha1.ClusterManager) {
+	hyperauthDomain := "https://" + os.Getenv("AUTH_SUBDOMAIN") + "." + os.Getenv("HC_DOMAIN") + "/auth/realms/tmax"
+	p.Namespace = clusterManager.Namespace
+	p.ClusterName = clusterManager.Name
+	p.Owner = clusterManager.Annotations[util.AnnotationKeyOwner]
+	p.KubernetesVersion = clusterManager.Spec.Version
+	p.MasterNum = clusterManager.Spec.MasterNum
+	p.WorkerNum = clusterManager.Spec.WorkerNum
+	p.HyperAuthUrl = hyperauthDomain
+}
+
+type AwsParameter struct {
+	SshKey         string
+	Region         string
+	MasterType     string
+	WorkerType     string
+	MasterDiskSize int
+	WorkerDiskSize int
+}
+
+func (p *AwsParameter) SetParameter(clusterManager clusterV1alpha1.ClusterManager) {
+	p.SshKey = clusterManager.AwsSpec.SshKey
+	p.Region = clusterManager.AwsSpec.Region
+	p.MasterType = clusterManager.AwsSpec.MasterType
+	p.MasterDiskSize = clusterManager.AwsSpec.MasterDiskSize
+	p.WorkerType = clusterManager.AwsSpec.WorkerType
+	p.WorkerDiskSize = clusterManager.AwsSpec.WorkerDiskSize
+}
+
+type VsphereParameter struct {
+	PodCidr             string
+	VcenterIp           string
+	VcenterId           string
+	VcenterPassword     string
+	VcenterThumbprint   string
+	VcenterNetwork      string
+	VcenterDataCenter   string
+	VcenterDataStore    string
+	VcenterFolder       string
+	VcenterResourcePool string
+	VcenterKcpIp        string
+	VcenterCpuNum       int
+	VcenterMemSize      int
+	VcenterDiskSize     int
+	VcenterTemplate     string
+}
+
+func (p *VsphereParameter) SetParameter(clusterManager clusterV1alpha1.ClusterManager) {
+	p.PodCidr = clusterManager.VsphereSpec.PodCidr
+	p.VcenterIp = clusterManager.VsphereSpec.VcenterIp
+	p.VcenterId = clusterManager.VsphereSpec.VcenterId
+	p.VcenterPassword = clusterManager.VsphereSpec.VcenterPassword
+	p.VcenterThumbprint = clusterManager.VsphereSpec.VcenterThumbprint
+	p.VcenterNetwork = clusterManager.VsphereSpec.VcenterNetwork
+	p.VcenterDataCenter = clusterManager.VsphereSpec.VcenterDataCenter
+	p.VcenterDataStore = clusterManager.VsphereSpec.VcenterDataStore
+	p.VcenterFolder = clusterManager.VsphereSpec.VcenterFolder
+	p.VcenterResourcePool = clusterManager.VsphereSpec.VcenterResourcePool
+	p.VcenterKcpIp = clusterManager.VsphereSpec.VcenterKcpIp
+	p.VcenterCpuNum = clusterManager.VsphereSpec.VcenterCpuNum
+	p.VcenterMemSize = clusterManager.VsphereSpec.VcenterMemSize
+	p.VcenterDiskSize = clusterManager.VsphereSpec.VcenterDiskSize
+	p.VcenterTemplate = clusterManager.VsphereSpec.VcenterTemplate
+}
+
+type VsphereUpgradeParameter struct {
+	Namespace           string
+	ClusterName         string
+	VcenterIp           string
+	VcenterThumbprint   string
+	VcenterNetwork      string
+	VcenterDataCenter   string
+	VcenterDataStore    string
+	VcenterFolder       string
+	VcenterResourcePool string
+	VcenterCpuNum       int
+	VcenterMemSize      int
+	VcenterDiskSize     int
+	VcenterTemplate     string
+	KubernetesVersion   string
+}
+
+func (p *VsphereUpgradeParameter) SetParameter(clusterManager clusterV1alpha1.ClusterManager) {
+	p.Namespace = clusterManager.Namespace
+	p.KubernetesVersion = clusterManager.Spec.Version
+	p.ClusterName = clusterManager.Name
+	p.VcenterIp = clusterManager.VsphereSpec.VcenterIp
+	p.VcenterThumbprint = clusterManager.VsphereSpec.VcenterThumbprint
+	p.VcenterNetwork = clusterManager.VsphereSpec.VcenterNetwork
+	p.VcenterDataCenter = clusterManager.VsphereSpec.VcenterDataCenter
+	p.VcenterDataStore = clusterManager.VsphereSpec.VcenterDataStore
+	p.VcenterFolder = clusterManager.VsphereSpec.VcenterFolder
+	p.VcenterResourcePool = clusterManager.VsphereSpec.VcenterResourcePool
+	p.VcenterCpuNum = clusterManager.VsphereSpec.VcenterCpuNum
+	p.VcenterMemSize = clusterManager.VsphereSpec.VcenterMemSize
+	p.VcenterDiskSize = clusterManager.VsphereSpec.VcenterDiskSize
+	p.VcenterTemplate = clusterManager.VsphereSpec.VcenterTemplate
+}
+
+// parameter에 clustermanager spec 값을 넣어 marshaling해서 리턴하는 메서드
+func Marshaling(parameter Parameters, clusterManager clusterV1alpha1.ClusterManager) ([]byte, error) {
+	parameter.SetParameter(clusterManager)
+	return json.Marshal(parameter)
+}
+
+func MakeServiceInstance(clusterManager *clusterV1alpha1.ClusterManager, serviceInstanceName string, json []byte, upgrade bool) *servicecatalogv1beta1.ServiceInstance {
+	templateName := ""
+	if upgrade {
+		// vsphere upgrade에 대해서만 serviceinstance를 생성하므로
+		templateName = CAPI_VSPHERE_UPGRADE_TEMPLATE
+	} else {
+		templateName = "capi-" + strings.ToLower(clusterManager.Spec.Provider) + "-template"
+	}
+
+	serviceInstance := &servicecatalogv1beta1.ServiceInstance{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceInstanceName,
+			Namespace: clusterManager.Namespace,
+			Annotations: map[string]string{
+				util.AnnotationKeyOwner:   clusterManager.Annotations[util.AnnotationKeyCreator],
+				util.AnnotationKeyCreator: clusterManager.Annotations[util.AnnotationKeyCreator],
+			},
+		},
+		Spec: servicecatalogv1beta1.ServiceInstanceSpec{
+			PlanReference: servicecatalogv1beta1.PlanReference{
+				ClusterServiceClassExternalName: templateName,
+				ClusterServicePlanExternalName:  fmt.Sprintf("%s-%s", templateName, "plan-default"),
+			},
+			Parameters: &runtime.RawExtension{
+				Raw: json,
+			},
+		},
+	}
+
+	return serviceInstance
+}
+
+// controlplane, worker에 따른 machine list를 반환한다.
+func (r *ClusterManagerReconciler) GetMachineList(clusterManager *clusterV1alpha1.ClusterManager, controlplane bool) ([]capiV1alpha3.Machine, error) {
+
+	opts := []client.ListOption{client.InNamespace(clusterManager.Namespace),
+		client.MatchingLabels{CAPI_CLUSTER_LABEL_KEY: clusterManager.Name}}
+	if controlplane {
+		opts = append(opts, client.MatchingLabels{CAPI_CONTROLPLANE_LABEL_KEY: ""})
+	} else {
+		opts = append(opts, client.MatchingLabels{CAPI_WORKER_LABEL_KEY: clusterManager.Name + "-md-0"})
+	}
+	machines := &capiV1alpha3.MachineList{}
+	if err := r.List(context.TODO(), machines, opts...); err != nil {
+		return []capiV1alpha3.Machine{}, err
+	}
+	return machines.Items, nil
+}
+
+// controlplane machine list를 반환
+func (r *ClusterManagerReconciler) GetControlplaneMachineList(clusterManager *clusterV1alpha1.ClusterManager) ([]capiV1alpha3.Machine, error) {
+	return r.GetMachineList(clusterManager, true)
+}
+
+// worker machine list를 반환
+func (r *ClusterManagerReconciler) GetWorkerMachineList(clusterManager *clusterV1alpha1.ClusterManager) ([]capiV1alpha3.Machine, error) {
+	return r.GetMachineList(clusterManager, false)
+}
+
+type MachineUpgradeList struct {
+	// 새로운 version의 머신 이름 리스트
+	NewMachineList []string
+	// 이전 version의 머신 이름 리스트
+	OldMachineList []string
+	// Running 상태의 새로운 Version 머신 이름 리스트
+	NewMachineRunningList []string
+}
+
+func (m *MachineUpgradeList) SetMachines(new []string, old []string, newRunning []string) {
+	m.NewMachineList = new
+	m.OldMachineList = old
+	m.NewMachineRunningList = newRunning
+}
+
+// controlplane machine들의 MachineUpgradeList를 반환
+func (r *ClusterManagerReconciler) GetUpgradeControlplaneMachines(clusterManager *clusterV1alpha1.ClusterManager) (MachineUpgradeList, error) {
+	machines, err := r.GetControlplaneMachineList(clusterManager)
+	if err != nil {
+		return MachineUpgradeList{}, err
+	}
+	return r.GetUpgradeMachinesInfo(clusterManager, machines)
+}
+
+// worker machine들의 MachineUpgradeList를 반환
+func (r *ClusterManagerReconciler) GetUpgradeWorkerMachines(clusterManager *clusterV1alpha1.ClusterManager) (MachineUpgradeList, error) {
+	machines, err := r.GetWorkerMachineList(clusterManager)
+	if err != nil {
+		return MachineUpgradeList{}, err
+	}
+	return r.GetUpgradeMachinesInfo(clusterManager, machines)
+}
+
+func (r *ClusterManagerReconciler) GetUpgradeMachinesInfo(clusterManager *clusterV1alpha1.ClusterManager, machines []capiV1alpha3.Machine) (MachineUpgradeList, error) {
+	machineUpgrade := MachineUpgradeList{}
+	newMachineList := []string{}
+	oldMachineList := []string{}
+	newMachineRunning := []string{}
+
+	for _, machine := range machines {
+		if *machine.Spec.Version == clusterManager.Spec.Version {
+			newMachineList = append(newMachineList, machine.Name)
+			if machine.Status.Phase == string(capiV1alpha3.MachinePhaseRunning) {
+				newMachineRunning = append(newMachineRunning, machine.Name)
+			}
+		} else if *machine.Spec.Version != clusterManager.Spec.Version {
+			oldMachineList = append(oldMachineList, machine.Name)
+		}
+	}
+	machineUpgrade.SetMachines(newMachineList, oldMachineList, newMachineRunning)
+	return machineUpgrade, nil
+}
 
 func SetApplicationLink(c *clusterV1alpha1.ClusterManager, subdomain string) {
 	c.Status.ApplicationLink = strings.Join(
@@ -489,7 +725,11 @@ func (r *ClusterManagerReconciler) CreateApplication(clusterManager *clusterV1al
 								Value: util.ArgoDescriptionConsoleSubdomain,
 							},
 							{
-								Name:  "modules.hyperAuth.subdomain",
+								Name:  "global.domain",
+								Value: util.ArgoDescriptionGlobalDomain,
+							},
+							{
+								Name:  "global.masterSingle.hyperAuthDomain",
 								Value: util.ArgoDescriptionHyperAuthSubdomain,
 							},
 							{
@@ -497,8 +737,12 @@ func (r *ClusterManagerReconciler) CreateApplication(clusterManager *clusterV1al
 								Value: util.ArgoDescriptionKibanaSubdomain,
 							},
 							{
-								Name:  "modules.grafana.subdomain",
-								Value: util.ArgoDescriptionGrafanaSubdomain,
+								Name:  "modules.grafanaOperator.subdomain",
+								Value: util.ArgoDescriptionGrafanaOperatorSubdomain,
+							},
+							{
+								Name:  "modules.helmApiserver.subdomain",
+								Value: util.ArgoDescriptionHelmApiServerSubdomain,
 							},
 							{
 								Name:  "modules.serviceMesh.jaeger.subdomain",

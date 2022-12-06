@@ -77,6 +77,51 @@ func (r *ClusterManager) ValidateUpdate(old runtime.Object) error {
 	// 	}
 	// }
 
+	if oldClusterManager.Labels[LabelKeyClmClusterType] == ClusterTypeCreated {
+		// cluster 생성 중에 version upgrade 또는 scaling을 진행할 수 없음
+		if oldClusterManager.Status.Phase == ClusterManagerPhaseProcessing {
+			if r.Spec.Version != oldClusterManager.Spec.Version ||
+				r.Spec.MasterNum != oldClusterManager.Spec.MasterNum ||
+				r.Spec.WorkerNum != oldClusterManager.Spec.WorkerNum {
+				return errors.New("Cannot upgrade or scaling, when cluster's phase is progressing")
+			}
+
+		}
+
+		// version upgrade의 경우
+		if r.Spec.Version != oldClusterManager.Spec.Version {
+			// vsphere의 경우, version과 template을 함께 업데이트해야 함
+			if r.Spec.Provider == ProviderVSphere {
+				if r.VsphereSpec.VcenterTemplate == oldClusterManager.VsphereSpec.VcenterTemplate {
+					return errors.New("For vsphere provider, must update spec.version and vsphereSpec.vcetnerTemplate")
+				}
+			}
+		}
+
+		// scaling을 못하는 경우
+		if (r.Spec.MasterNum != oldClusterManager.Spec.MasterNum ||
+			r.Spec.WorkerNum != oldClusterManager.Spec.WorkerNum) &&
+			(oldClusterManager.Status.Phase == ClusterManagerPhaseProcessing ||
+				oldClusterManager.Status.Phase == ClusterManagerPhaseScaling ||
+				oldClusterManager.Status.Phase == ClusterManagerPhaseDeleting ||
+				oldClusterManager.Status.Phase == ClusterManagerPhaseUpgrading) {
+			return errors.New("Cannot update MasterNum or WorkerNum at Processing, Scaling, Upgrading or Deleting phases")
+		}
+
+		// version upgrade를 못하는 경우
+		if r.Spec.Version != oldClusterManager.Spec.Version &&
+			(oldClusterManager.Status.Phase == ClusterManagerPhaseProcessing ||
+				oldClusterManager.Status.Phase == ClusterManagerPhaseScaling ||
+				oldClusterManager.Status.Phase == ClusterManagerPhaseDeleting ||
+				oldClusterManager.Status.Phase == ClusterManagerPhaseUpgrading) {
+			return errors.New("Cannot update version at Progressing, Scaling, Upgrading or Deleting phases")
+		}
+
+		if r.Spec.MasterNum%2 == 0 {
+			return errors.New("Cannot be an even number when using managed etcd")
+		}
+	}
+
 	return nil
 }
 

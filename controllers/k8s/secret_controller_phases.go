@@ -54,7 +54,7 @@ func (r *SecretReconciler) UpdateClusterManagerControlPlaneEndpoint(ctx context.
 	clm := &clusterV1alpha1.ClusterManager{}
 	err = r.Get(context.TODO(), key, clm)
 	if errors.IsNotFound(err) {
-		log.Info("Cannot found clusterManager")
+		log.Info("Cannot find clusterManager")
 		// return ctrl.Result{RequeueAfter: requeueAfter5Sec}, nil
 	} else if err != nil {
 		log.Error(err, "Failed to get clusterManager + ["+clm.Name+"]")

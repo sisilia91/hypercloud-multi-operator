@@ -31,3 +31,5 @@ bin
 
 # Test yaml
 build/test
+!hypercloud-deploy.sh
+!hypercloud-undeploy.sh

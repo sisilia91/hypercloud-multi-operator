@@ -5,6 +5,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.6.2
+  creationTimestamp: null
   name: clustermanagers.cluster.tmax.io
 spec:
   group: cluster.tmax.io
@@ -63,6 +64,10 @@ spec:
           awsSpec:
             description: ProviderAwsSpec defines
             properties:
+              masterDiskSize:
+                description: 'The size of VM for master node. Example: 20. The minimum
+                  value is 8.'
+                type: integer
               masterType:
                 description: The type of VM for master node
                 type: string
@@ -72,6 +77,10 @@ spec:
               sshKey:
                 description: The ssh key info to access VM
                 type: string
+              workerDiskSize:
+                description: 'The size of VM for worker node. Example: 20. The minimum
+                  value is 8.'
+                type: integer
               workerType:
                 description: The type of VM for worker node
                 type: string
@@ -121,6 +130,8 @@ spec:
                 type: boolean
               gatewayReadyMigration:
                 type: boolean
+              masterNum:
+                type: integer
               masterRun:
                 type: integer
               nodeInfo:
@@ -193,6 +204,8 @@ spec:
                 type: boolean
               version:
                 type: string
+              workerNum:
+                type: integer
               workerRun:
                 type: integer
             type: object

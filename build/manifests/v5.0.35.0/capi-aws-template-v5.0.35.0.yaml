@@ -45,15 +45,11 @@ objects:
     sshKeyName: ${SshKey}
   bastion:
     enabled: false
-    # enabled: true
 - apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
   kind: KubeadmControlPlane
   metadata:
     name: ${ClusterName}-control-plane
     namespace: default
-  labels:
-    cluster.tmax.io/cluster-name: '${ClusterName}'
-    cluster.tmax.io/controlplane: controlplane
   spec:
     infrastructureTemplate:
       apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
@@ -208,16 +204,11 @@ objects:
         iamInstanceProfile: control-plane.cluster-api-provider-aws.sigs.k8s.io
         instanceType: ${MasterType}
         sshKeyName: ${SshKey}
-        rootVolume:
-          size: ${MasterDiskSize}
 - apiVersion: cluster.x-k8s.io/v1alpha3
   kind: MachineDeployment
   metadata:
     name: ${ClusterName}-md-0
     namespace: default
-    labels:
-      cluster.tmax.io/cluster-name: '${ClusterName}'
-      cluster.tmax.io/worker: worker
   spec:
     clusterName: ${ClusterName}
     replicas: ${WorkerNum}
@@ -246,8 +237,6 @@ objects:
         iamInstanceProfile: nodes.cluster-api-provider-aws.sigs.k8s.io
         instanceType: ${WorkerType}
         sshKeyName: ${SshKey}
-        rootVolume:
-          size: ${WorkerDiskSize}
 - apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
   kind: KubeadmConfigTemplate
   metadata:
@@ -326,18 +315,6 @@ parameters:
   required: false
   value: t3.large
   valueType: string
-- description: Master nodes disk type
-  displayName: MasterDiskSize
-  name: MasterDiskSize
-  required: false
-  value: 20
-  valueType: number
-- description: Worker nodes disk type
-  displayName: WorkerDiskSize
-  name: WorkerDiskSize
-  required: false
-  value: 20
-  valueType: number
 - description: HyperAuth url for open id connect
   displayName: HyperAuth URL
   name: HyperAuthUrl

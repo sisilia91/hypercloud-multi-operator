@@ -16,8 +16,6 @@ package controllers
 
 import (
 	"context"
-	"strings"
-	"time"
 
 	"github.com/go-logr/logr"
 	certmanagerV1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
@@ -46,48 +44,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-const (
-	requeueAfter10Second = 10 * time.Second
-	requeueAfter20Second = 20 * time.Second
-	requeueAfter30Second = 30 * time.Second
-	requeueAfter1Minute  = 1 * time.Minute
-)
-
-type ClusterParameter struct {
-	Namespace         string
-	ClusterName       string
-	MasterNum         int
-	WorkerNum         int
-	Owner             string
-	KubernetesVersion string
-	HyperAuthUrl      string
-}
-
-type AwsParameter struct {
-	SshKey     string
-	Region     string
-	MasterType string
-	WorkerType string
-}
-
-type VsphereParameter struct {
-	PodCidr             string
-	VcenterIp           string
-	VcenterId           string
-	VcenterPassword     string
-	VcenterThumbprint   string
-	VcenterNetwork      string
-	VcenterDataCenter   string
-	VcenterDataStore    string
-	VcenterFolder       string
-	VcenterResourcePool string
-	VcenterKcpIp        string
-	VcenterCpuNum       int
-	VcenterMemSize      int
-	VcenterDiskSize     int
-	VcenterTemplate     string
-}
-
 // ClusterManagerReconciler reconciles a ClusterManager object
 type ClusterManagerReconciler struct {
 	client.Client
@@ -100,6 +56,8 @@ type ClusterManagerReconciler struct {
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machinedeployments,verbs=create;delete;get;list;patch;update;watch
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machinedeployments/status,verbs=get;list;patch;update;watch
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;list;patch;update;watch
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines/status,verbs=get;list;patch;update;watch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings;roles;rolebindings,verbs=create;delete;get;list;patch;update;watch
 // +kubebuilder:rbac:groups=controlplane.cluster.x-k8s.io,resources=kubeadmcontrolplanes,verbs=create;delete;get;list;patch;update;watch
 // +kubebuilder:rbac:groups=controlplane.cluster.x-k8s.io,resources=kubeadmcontrolplanes/status,verbs=get;list;patch;update;watch
@@ -147,33 +105,6 @@ func (r *ClusterManagerReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if !controllerutil.ContainsFinalizer(clusterManager, clusterV1alpha1.ClusterManagerFinalizer) {
 		controllerutil.AddFinalizer(clusterManager, clusterV1alpha1.ClusterManagerFinalizer)
 		return ctrl.Result{}, nil
-	}
-
-	// Label migration for old version
-	if _, ok := clusterManager.GetLabels()[clusterV1alpha1.LabelKeyClmClusterTypeDefunct]; ok {
-		clusterManager.Labels[clusterV1alpha1.LabelKeyClmClusterType] =
-			clusterManager.Labels[clusterV1alpha1.LabelKeyClmClusterTypeDefunct]
-	}
-
-	// Status migration for old version
-	if !clusterManager.Status.GatewayReadyMigration {
-		clusterManager.Status.GatewayReady = clusterManager.Status.PrometheusReady
-		clusterManager.Status.GatewayReadyMigration = true
-	}
-
-	// ApplicationLink migration for old version
-	if clusterManager.Status.ApplicationLink == "" {
-		argoIngress := &networkingv1.Ingress{}
-		key := types.NamespacedName{
-			Name:      util.ArgoIngressName,
-			Namespace: util.ArgoNamespace,
-		}
-		if err := r.Get(context.TODO(), key, argoIngress); err != nil {
-			log.Error(err, "Can not get argocd ingress information.")
-		} else {
-			subdomain := strings.Split(argoIngress.Spec.Rules[0].Host, ".")[0]
-			SetApplicationLink(clusterManager, subdomain)
-		}
 	}
 
 	// Handle deletion reconciliation loop.
@@ -233,6 +164,8 @@ func (r *ClusterManagerReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 // reconcile handles cluster reconciliation.
 func (r *ClusterManagerReconciler) reconcile(ctx context.Context, clusterManager *clusterV1alpha1.ClusterManager) (ctrl.Result, error) {
 	phases := []func(context.Context, *clusterV1alpha1.ClusterManager) (ctrl.Result, error){}
+	phases = append(phases, r.ReadyReconcilePhase)
+
 	if clusterManager.Labels[clusterV1alpha1.LabelKeyClmClusterType] == clusterV1alpha1.ClusterTypeCreated {
 		// cluster claim 으로 cluster 를 생성한 경우에만 수행
 		phases = append(
@@ -273,6 +206,21 @@ func (r *ClusterManagerReconciler) reconcile(ctx context.Context, clusterManager
 		// LNB에 리스팅 될 수 있게 해당 프로세스를 가장 마지막에 수행한다.
 		r.CreateTraefikResources,
 	)
+
+	// special case- capi upgrade/master scaling/worker scaling
+	if clusterManager.Labels[clusterV1alpha1.LabelKeyClmClusterType] == clusterV1alpha1.ClusterTypeCreated {
+		if clusterManager.Status.Version != "" && clusterManager.Spec.Version != clusterManager.Status.Version {
+			phases = []func(context.Context, *clusterV1alpha1.ClusterManager) (ctrl.Result, error){}
+			if clusterManager.Spec.Provider == clusterV1alpha1.ProviderVSphere {
+				phases = append(phases, r.CreateUpgradeServiceInstance)
+			}
+			phases = append(phases, r.ClusterUpgrade)
+		} else if clusterManager.Status.MasterNum != 0 && clusterManager.Spec.MasterNum != clusterManager.Status.MasterNum {
+			phases = []func(context.Context, *clusterV1alpha1.ClusterManager) (ctrl.Result, error){r.ControlplaneScaling}
+		} else if clusterManager.Status.WorkerNum != 0 && clusterManager.Spec.WorkerNum != clusterManager.Status.WorkerNum {
+			phases = []func(context.Context, *clusterV1alpha1.ClusterManager) (ctrl.Result, error){r.WorkerScaling}
+		}
+	}
 
 	res := ctrl.Result{}
 	errs := []error{}
@@ -403,6 +351,12 @@ func (r *ClusterManagerReconciler) reconcileDelete(ctx context.Context, clusterM
 }
 
 func (r *ClusterManagerReconciler) reconcilePhase(_ context.Context, clusterManager *clusterV1alpha1.ClusterManager) {
+
+	if !clusterManager.DeletionTimestamp.IsZero() {
+		clusterManager.Status.SetTypedPhase(clusterV1alpha1.ClusterManagerPhaseDeleting)
+		return
+	}
+
 	if clusterManager.Status.Phase == "" {
 		clusterManager.Status.SetTypedPhase(clusterV1alpha1.ClusterManagerPhaseProcessing)
 	}
@@ -419,27 +373,17 @@ func (r *ClusterManagerReconciler) reconcilePhase(_ context.Context, clusterMana
 		clusterManager.Status.SetTypedPhase(clusterV1alpha1.ClusterManagerPhaseReady)
 	}
 
-	if !clusterManager.DeletionTimestamp.IsZero() {
-		clusterManager.Status.SetTypedPhase(clusterV1alpha1.ClusterManagerPhaseDeleting)
+	// cluster scaling
+	if (clusterManager.Status.MasterNum != 0 && clusterManager.Spec.MasterNum != clusterManager.Status.MasterNum) ||
+		(clusterManager.Status.WorkerNum != 0 && clusterManager.Spec.WorkerNum != clusterManager.Status.WorkerNum) {
+		clusterManager.Status.SetTypedPhase(clusterV1alpha1.ClusterManagerPhaseScaling)
+		return
 	}
 
-	// for migration
-	if clusterManager.Status.Phase == clusterV1alpha1.ClusterManagerDeprecatedPhaseProvisioning ||
-		clusterManager.Status.Phase == clusterV1alpha1.ClusterManagerDeprecatedPhaseRegistering {
-		if clusterManager.Status.GatewayReady {
-			clusterManager.Status.SetTypedPhase(clusterV1alpha1.ClusterManagerPhaseProcessing)
-		} else {
-			clusterManager.Status.SetTypedPhase(clusterV1alpha1.ClusterManagerPhaseSyncNeeded)
-		}
-	}
-
-	if clusterManager.Status.Phase == clusterV1alpha1.ClusterManagerDeprecatedPhaseProvisioned ||
-		clusterManager.Status.Phase == clusterV1alpha1.ClusterManagerDeprecatedPhaseRegistered {
-		if clusterManager.Status.GatewayReady {
-			clusterManager.Status.SetTypedPhase(clusterV1alpha1.ClusterManagerPhaseReady)
-		} else {
-			clusterManager.Status.SetTypedPhase(clusterV1alpha1.ClusterManagerPhaseSyncNeeded)
-		}
+	// cluster upgrading
+	if clusterManager.Status.Version != "" && clusterManager.Status.Version != clusterManager.Spec.Version {
+		clusterManager.Status.SetTypedPhase(clusterV1alpha1.ClusterManagerPhaseUpgrading)
+		return
 	}
 }
 
@@ -464,7 +408,11 @@ func (r *ClusterManagerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					isControlPlaneEndpointUpdate := oldclm.Status.ControlPlaneEndpoint == "" &&
 						newclm.Status.ControlPlaneEndpoint != ""
 					isSubResourceNotReady := !newclm.Status.ArgoReady || !newclm.Status.TraefikReady || !newclm.Status.GatewayReady
-					if isDelete || isControlPlaneEndpointUpdate || isFinalized {
+
+					isUpgrade := oldclm.Spec.Version != "" && oldclm.Spec.Version != newclm.Spec.Version
+					isScaling := oldclm.Spec.MasterNum != newclm.Spec.MasterNum ||
+						oldclm.Spec.WorkerNum != newclm.Spec.WorkerNum
+					if isDelete || isControlPlaneEndpointUpdate || isFinalized || isUpgrade || isScaling {
 						return true
 					} else {
 						if newclm.Labels[clusterV1alpha1.LabelKeyClmClusterType] == clusterV1alpha1.ClusterTypeCreated {

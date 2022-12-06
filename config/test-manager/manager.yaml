@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+  labels:
+    hypercloud: multi-operator
+spec:
+  selector:
+    matchLabels:
+      hypercloud: multi-operator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        hypercloud: multi-operator
+    spec:
+      containers:
+      - args:
+        - --enable-leader-election
+        - --zap-log-level=info
+        command:
+        - /manager
+        env:
+        - name: HC_DOMAIN
+          value: tmaxcloud.org
+        - name: AUTH_CLIENT_SECRET
+          value: tmax_client_secret
+        - name: AUTH_SUBDOMAIN
+          value: hyperauth
+        image: controller:latest
+        name: manager
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+        volumeMounts:
+        - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+          name: hypercloud-multi-operator-controller-manager-token
+          readOnly: true
+      serviceAccountName: hypercloud-multi-operator-controller-manager
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name:  hypercloud-multi-operator-controller-manager-token
+        secret:
+          defaultMode: 420
+          secretName:  hypercloud-multi-operator-controller-manager-token

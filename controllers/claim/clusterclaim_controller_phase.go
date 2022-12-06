@@ -44,10 +44,12 @@ func (r *ClusterClaimReconciler) CreateClusterManager(ctx context.Context, cc *c
 				WorkerNum: cc.Spec.WorkerNum,
 			},
 			AwsSpec: clusterV1alpha1.ProviderAwsSpec{
-				Region:     cc.Spec.ProviderAwsSpec.Region,
-				SshKey:     cc.Spec.ProviderAwsSpec.SshKey,
-				MasterType: cc.Spec.ProviderAwsSpec.MasterType,
-				WorkerType: cc.Spec.ProviderAwsSpec.WorkerType,
+				Region:         cc.Spec.ProviderAwsSpec.Region,
+				SshKey:         cc.Spec.ProviderAwsSpec.SshKey,
+				MasterType:     cc.Spec.ProviderAwsSpec.MasterType,
+				MasterDiskSize: cc.Spec.ProviderAwsSpec.MasterDiskSize,
+				WorkerType:     cc.Spec.ProviderAwsSpec.WorkerType,
+				WorkerDiskSize: cc.Spec.ProviderAwsSpec.WorkerDiskSize,
 			},
 			VsphereSpec: clusterV1alpha1.ProviderVsphereSpec{
 				PodCidr:             cc.Spec.ProviderVsphereSpec.PodCidr,

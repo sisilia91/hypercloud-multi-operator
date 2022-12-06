@@ -5,6 +5,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.6.2
+  creationTimestamp: null
   name: clusterclaims.claim.tmax.io
 spec:
   group: claim.tmax.io
@@ -52,6 +53,7 @@ spec:
                 type: string
               masterNum:
                 description: The number of master node
+                minimum: 1
                 type: integer
               provider:
                 description: The type of provider
@@ -62,6 +64,10 @@ spec:
               providerAwsSpec:
                 description: Provider Aws Spec
                 properties:
+                  masterDiskSize:
+                    description: 'The size of VM for master node. Example: 20'
+                    minimum: 8
+                    type: integer
                   masterType:
                     description: 'The type of VM for master node. Example: m4.xlarge.
                       see: https://aws.amazon.com/ec2/instance-types'
@@ -88,6 +94,10 @@ spec:
                   sshKey:
                     description: The ssh key info to access VM
                     type: string
+                  workerDiskSize:
+                    description: 'The size of VM for worker node. Example: 20'
+                    minimum: 8
+                    type: integer
                   workerType:
                     description: 'The type of VM for master node. Example: m4.xlarge.
                       see: https://aws.amazon.com/ec2/instance-types'
@@ -97,10 +107,13 @@ spec:
                 description: Provider vSphere Spec
                 properties:
                   podCidr:
-                    description: The internal IP address cider block for pods
+                    description: 'The internal IP address cider block for pods. Example:
+                      10.0.0.0/16'
+                    pattern: ^[0-9]+.[0-9]+.[0-9]+.[0-9]+\/[0-9]+
                     type: string
                   vcenterCpuNum:
                     description: The number of cpus for vm
+                    minimum: 2
                     type: integer
                   vcenterDataCenter:
                     description: The name of data center
@@ -111,6 +124,7 @@ spec:
                   vcenterDiskSize:
                     description: 'The disk size for vm, write as GB without unit.
                       Example: 25'
+                    minimum: 20
                     type: integer
                   vcenterFolder:
                     description: The name of folder
@@ -127,6 +141,7 @@ spec:
                   vcenterMemSize:
                     description: 'The memory size for vm, write as MB without unit.
                       Example: 8192'
+                    minimum: 2048
                     type: integer
                   vcenterNetwork:
                     description: The name of network
@@ -145,10 +160,12 @@ spec:
                     type: string
                 type: object
               version:
-                description: The version of kubernetes
+                description: 'The version of kubernetes. Example: v1.19.6'
+                pattern: ^v[0-9].[0-9]+.[0-9]+
                 type: string
               workerNum:
                 description: The number of worker node
+                minimum: 1
                 type: integer
             required:
             - clusterName

@@ -113,6 +113,10 @@ func (r *ClusterClaim) ValidateCreate() error {
 		return k8sErrors.NewInvalid(r.GroupVersionKind().GroupKind(), "InvalidSpecClusterName", errList)
 	}
 
+	if r.Spec.MasterNum%2 == 0 {
+		return errors.New("Cannot be an even number when using managed etcd")
+	}
+
 	return nil
 }
 

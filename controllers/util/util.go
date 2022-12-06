@@ -137,7 +137,7 @@ func GetProviderName(provider string) (string, error) {
 	}
 
 	if providerNameLogo[provider] == "" {
-		return ProviderUnknown, fmt.Errorf("Cannot found provider [" + provider + "]")
+		return ProviderUnknown, fmt.Errorf("Cannot find provider [" + provider + "]")
 	}
 
 	return providerNameLogo[provider], nil

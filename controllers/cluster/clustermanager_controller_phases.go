@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
@@ -32,17 +31,61 @@ import (
 	networkingV1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/clientcmd"
 
+	// cpavV1alpha3 "sigs.k8s.io/cluster-api-provider-vsphere/apis/v1alpha3"
 	capiV1alpha3 "sigs.k8s.io/cluster-api/api/v1alpha3"
 	controlplanev1 "sigs.k8s.io/cluster-api/controlplane/kubeadm/api/v1alpha3"
-	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/yaml"
 )
+
+// reconcile시작 전 필요한 동작들을 수행
+func (r *ClusterManagerReconciler) ReadyReconcilePhase(ctx context.Context, clusterManager *clusterV1alpha1.ClusterManager) (ctrl.Result, error) {
+	log := r.Log.WithValues("clustermanager", clusterManager.GetNamespacedName())
+	log.Info("Start to reconcile phase for ReadyReconcilePhase")
+
+	// Label migration for old version
+	if _, ok := clusterManager.GetLabels()[clusterV1alpha1.LabelKeyClmClusterTypeDefunct]; ok {
+		clusterManager.Labels[clusterV1alpha1.LabelKeyClmClusterType] =
+			clusterManager.Labels[clusterV1alpha1.LabelKeyClmClusterTypeDefunct]
+	}
+
+	// Status migration for old version
+	if !clusterManager.Status.GatewayReadyMigration {
+		clusterManager.Status.GatewayReady = clusterManager.Status.PrometheusReady
+		clusterManager.Status.GatewayReadyMigration = true
+	}
+
+	// ApplicationLink migration for old version
+	if clusterManager.Status.ApplicationLink == "" {
+		argoIngress := &networkingV1.Ingress{}
+		key := types.NamespacedName{
+			Name:      util.ArgoIngressName,
+			Namespace: util.ArgoNamespace,
+		}
+		if err := r.Get(context.TODO(), key, argoIngress); err != nil {
+			log.Error(err, "Can not get argocd ingress information.")
+		} else {
+			subdomain := strings.Split(argoIngress.Spec.Rules[0].Host, ".")[0]
+			SetApplicationLink(clusterManager, subdomain)
+		}
+	}
+
+	if clusterManager.Status.Version == "" {
+		clusterManager.Status.Version = clusterManager.Spec.Version
+	}
+	if clusterManager.Status.MasterNum == 0 {
+		clusterManager.Status.MasterNum = clusterManager.Spec.MasterNum
+	}
+	if clusterManager.Status.WorkerNum == 0 {
+		clusterManager.Status.WorkerNum = clusterManager.Spec.WorkerNum
+	}
+
+	return ctrl.Result{}, nil
+}
 
 func (r *ClusterManagerReconciler) UpdateClusterManagerStatus(ctx context.Context, clusterManager *clusterV1alpha1.ClusterManager) (ctrl.Result, error) {
 	if clusterManager.Status.ControlPlaneReady {
@@ -114,7 +157,7 @@ func (r *ClusterManagerReconciler) UpdateClusterManagerStatus(ctx context.Contex
 				strings.Split(node.Spec.ProviderID, "://")[0],
 			)
 			if err != nil {
-				log.Error(err, "Cannot found given provider name.")
+				log.Error(err, "Cannot find given provider name.")
 			}
 			clusterManager.Status.Provider = providerID
 			clusterManager.Spec.Provider = providerID
@@ -129,7 +172,7 @@ func (r *ClusterManagerReconciler) UpdateClusterManagerStatus(ctx context.Contex
 				matchString[len("cloud-provider: "):],
 			)
 			if err != nil {
-				log.Error(err, "Cannot found given provider name.")
+				log.Error(err, "Cannot find given provider name.")
 			}
 			clusterManager.Status.Provider = cloudProvider
 			clusterManager.Spec.Provider = cloudProvider
@@ -204,25 +247,13 @@ func (r *ClusterManagerReconciler) CreateServiceInstance(ctx context.Context, cl
 
 	// hyperauthTlsCert := hyperAuth.GetHyperAuthTLSCertificate(hyperauthHttpsSecret)
 
-	hyperauthDomain := "https://" + os.Getenv("AUTH_SUBDOMAIN") + "." + os.Getenv("HC_DOMAIN") + "/auth/realms/tmax"
-
 	key := types.NamespacedName{
 		Name:      clusterManager.Name + clusterManager.Annotations[clusterV1alpha1.AnnotationKeyClmSuffix],
 		Namespace: clusterManager.Namespace,
 	}
 
 	if err := r.Get(context.TODO(), key, &servicecatalogv1beta1.ServiceInstance{}); errors.IsNotFound(err) {
-		clusterJson, err := json.Marshal(
-			&ClusterParameter{
-				Namespace:         clusterManager.Namespace,
-				ClusterName:       clusterManager.Name,
-				Owner:             clusterManager.Annotations[util.AnnotationKeyOwner],
-				KubernetesVersion: clusterManager.Spec.Version,
-				MasterNum:         clusterManager.Spec.MasterNum,
-				WorkerNum:         clusterManager.Spec.WorkerNum,
-				HyperAuthUrl:      hyperauthDomain,
-			},
-		)
+		clusterJson, err := Marshaling(&ClusterParameter{}, *clusterManager)
 		if err != nil {
 			log.Error(err, "Failed to marshal cluster parameters")
 		}
@@ -230,72 +261,62 @@ func (r *ClusterManagerReconciler) CreateServiceInstance(ctx context.Context, cl
 		var providerJson []byte
 		switch strings.ToUpper(clusterManager.Spec.Provider) {
 		case util.ProviderAws:
-			providerJson, err = json.Marshal(
-				&AwsParameter{
-					SshKey:     clusterManager.AwsSpec.SshKey,
-					Region:     clusterManager.AwsSpec.Region,
-					MasterType: clusterManager.AwsSpec.MasterType,
-					WorkerType: clusterManager.AwsSpec.WorkerType,
-				},
-			)
+			providerJson, err = Marshaling(&AwsParameter{}, *clusterManager)
 			if err != nil {
 				log.Error(err, "Failed to marshal cluster parameters")
 				return ctrl.Result{}, err
 			}
 		case util.ProviderVsphere:
-			providerJson, err = json.Marshal(
-				&VsphereParameter{
-					PodCidr:             clusterManager.VsphereSpec.PodCidr,
-					VcenterIp:           clusterManager.VsphereSpec.VcenterIp,
-					VcenterId:           clusterManager.VsphereSpec.VcenterId,
-					VcenterPassword:     clusterManager.VsphereSpec.VcenterPassword,
-					VcenterThumbprint:   clusterManager.VsphereSpec.VcenterThumbprint,
-					VcenterNetwork:      clusterManager.VsphereSpec.VcenterNetwork,
-					VcenterDataCenter:   clusterManager.VsphereSpec.VcenterDataCenter,
-					VcenterDataStore:    clusterManager.VsphereSpec.VcenterDataStore,
-					VcenterFolder:       clusterManager.VsphereSpec.VcenterFolder,
-					VcenterResourcePool: clusterManager.VsphereSpec.VcenterResourcePool,
-					VcenterKcpIp:        clusterManager.VsphereSpec.VcenterKcpIp,
-					VcenterCpuNum:       clusterManager.VsphereSpec.VcenterCpuNum,
-					VcenterMemSize:      clusterManager.VsphereSpec.VcenterMemSize,
-					VcenterDiskSize:     clusterManager.VsphereSpec.VcenterDiskSize,
-					VcenterTemplate:     clusterManager.VsphereSpec.VcenterTemplate,
-				},
-			)
+			providerJson, err = Marshaling(&VsphereParameter{}, *clusterManager)
 			if err != nil {
 				log.Error(err, "Failed to marshal cluster parameters")
 				return ctrl.Result{}, err
 			}
 		}
-
 		clusterJson = util.MergeJson(clusterJson, providerJson)
 		generatedSuffix := util.CreateSuffixString()
-		serviceInstance := &servicecatalogv1beta1.ServiceInstance{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      clusterManager.Name + "-" + generatedSuffix,
-				Namespace: clusterManager.Namespace,
-				Annotations: map[string]string{
-					util.AnnotationKeyOwner:   clusterManager.Annotations[util.AnnotationKeyCreator],
-					util.AnnotationKeyCreator: clusterManager.Annotations[util.AnnotationKeyCreator],
-				},
-			},
-			Spec: servicecatalogv1beta1.ServiceInstanceSpec{
-				PlanReference: servicecatalogv1beta1.PlanReference{
-					ClusterServiceClassExternalName: "capi-" + strings.ToLower(clusterManager.Spec.Provider) + "-template",
-					ClusterServicePlanExternalName:  "capi-" + strings.ToLower(clusterManager.Spec.Provider) + "-template-plan-default",
-				},
-				Parameters: &runtime.RawExtension{
-					Raw: clusterJson,
-				},
-			},
-		}
+		serviceInstanceName := clusterManager.Name + "-" + generatedSuffix
+		serviceInstance := MakeServiceInstance(clusterManager, serviceInstanceName, clusterJson, false)
 		if err = r.Create(context.TODO(), serviceInstance); err != nil {
 			log.Error(err, "Failed to create ServiceInstance")
 			return ctrl.Result{}, err
 		}
-
-		ctrl.SetControllerReference(clusterManager, serviceInstance, r.Scheme)
 		clusterManager.Annotations[clusterV1alpha1.AnnotationKeyClmSuffix] = generatedSuffix
+	} else if err != nil {
+		log.Error(err, "Failed to get ServiceInstance")
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *ClusterManagerReconciler) CreateUpgradeServiceInstance(ctx context.Context, clusterManager *clusterV1alpha1.ClusterManager) (ctrl.Result, error) {
+	log := r.Log.WithValues("clustermanager", clusterManager.GetNamespacedName())
+	log.Info("Start to reconcile phase for CreateUpgradeServiceInstance")
+
+	clmSuffix, ok := clusterManager.Annotations[clusterV1alpha1.AnnotationKeyClmSuffix]
+	if !ok {
+		err := fmt.Errorf("Cannot find cluster suffix from cluster manager")
+		log.Error(err, "failed to upgrade vsphere cluster")
+		return ctrl.Result{}, err
+	}
+	serviceInstanceName := fmt.Sprintf("%s-%s-%s", clusterManager.Name, clmSuffix, clusterManager.Spec.Version)
+	key := types.NamespacedName{
+		Name:      serviceInstanceName,
+		Namespace: clusterManager.Namespace,
+	}
+
+	if err := r.Get(context.TODO(), key, &servicecatalogv1beta1.ServiceInstance{}); errors.IsNotFound(err) {
+		upgradeJson, err := Marshaling(&VsphereUpgradeParameter{}, *clusterManager)
+		if err != nil {
+			log.Error(err, "Failed to marshal upgrade parameters")
+		}
+		serviceInstance := MakeServiceInstance(clusterManager, serviceInstanceName, upgradeJson, true)
+		ctrl.SetControllerReference(clusterManager, serviceInstance, r.Scheme)
+		if err = r.Create(context.TODO(), serviceInstance); err != nil {
+			log.Error(err, "Failed to create ServiceInstance")
+			return ctrl.Result{}, err
+		}
 	} else if err != nil {
 		log.Error(err, "Failed to get ServiceInstance")
 		return ctrl.Result{}, err
@@ -330,6 +351,213 @@ func (r *ClusterManagerReconciler) SetEndpoint(ctx context.Context, clusterManag
 	return ctrl.Result{}, nil
 }
 
+// controlplane을 scaling한다.
+func (r *ClusterManagerReconciler) ControlplaneScaling(ctx context.Context, clusterManager *clusterV1alpha1.ClusterManager) (ctrl.Result, error) {
+	log := r.Log.WithValues("clustermanager", clusterManager.GetNamespacedName())
+	log.Info("Start to reconcile phase for ControlplaneScaling")
+
+	key := types.NamespacedName{
+		Name:      clusterManager.Name + "-control-plane",
+		Namespace: clusterManager.Namespace,
+	}
+
+	kcp := &controlplanev1.KubeadmControlPlane{}
+	if err := r.Get(context.TODO(), key, kcp); errors.IsNotFound(err) {
+		log.Error(err, "Cannot find kubeadmcontrolplane")
+		return ctrl.Result{}, err
+	} else if err != nil {
+		log.Error(err, "Failed to get kubeadmcontrolplane")
+		return ctrl.Result{}, err
+	}
+
+	expectedNum := int32(clusterManager.Spec.MasterNum)
+	if *kcp.Spec.Replicas != expectedNum {
+		*kcp.Spec.Replicas = expectedNum
+		if err := r.Update(context.TODO(), kcp); err != nil {
+			log.Info("Failed to update kubadmcontrolplane")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{RequeueAfter: requeueAfter20Second}, nil
+	}
+
+	if kcp.Status.ReadyReplicas == *kcp.Spec.Replicas {
+		log.Info("Controlplane scaling is completed successfully")
+		clusterManager.Status.MasterNum = clusterManager.Spec.MasterNum
+		return ctrl.Result{}, nil
+	}
+	if clusterManager.Spec.MasterNum > clusterManager.Status.MasterNum {
+		log.Info("Waiting for Controlplane nodes to be scaled out. Requeue after 1 min.")
+	} else {
+		log.Info("Waiting for Controlplane nodes to be scaled in. Requeue after 1 min.")
+	}
+	return ctrl.Result{RequeueAfter: requeueAfter1Minute}, nil
+}
+
+// worker를 scaling한다.
+func (r *ClusterManagerReconciler) WorkerScaling(ctx context.Context, clusterManager *clusterV1alpha1.ClusterManager) (ctrl.Result, error) {
+	log := r.Log.WithValues("clustermanager", clusterManager.GetNamespacedName())
+	log.Info("Start to reconcile phase for WorkerScaling")
+
+	key := types.NamespacedName{
+		Name:      clusterManager.Name + "-md-0",
+		Namespace: clusterManager.Namespace,
+	}
+
+	md := &capiV1alpha3.MachineDeployment{}
+	if err := r.Get(context.TODO(), key, md); errors.IsNotFound(err) {
+		return ctrl.Result{}, nil
+	} else if err != nil {
+		log.Error(err, "Failed to get machineDeployment")
+		return ctrl.Result{}, err
+	}
+
+	expectedNum := int32(clusterManager.Spec.WorkerNum)
+	if *md.Spec.Replicas != expectedNum {
+		*md.Spec.Replicas = expectedNum
+		if err := r.Update(context.TODO(), md); err != nil {
+			log.Info("Failed to update machineDeployment")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{RequeueAfter: requeueAfter20Second}, nil
+	}
+
+	if md.Status.ReadyReplicas == *md.Spec.Replicas {
+		log.Info("Worker scaling is completed successfully")
+		clusterManager.Status.WorkerNum = clusterManager.Spec.WorkerNum
+		return ctrl.Result{}, nil
+	}
+	if clusterManager.Spec.WorkerNum > clusterManager.Spec.WorkerNum {
+		log.Info("Waiting for Worker nodes to be scaled out. Requeue after 20sec.")
+	} else {
+		log.Info("Waiting for Worker nodes to be scaled in. Requeue after 20sec.")
+	}
+	return ctrl.Result{RequeueAfter: requeueAfter20Second}, nil
+}
+
+// cluster를 upgrade한다. vsphere의 경우, serviceinstance 생성이 필요하다.
+func (r *ClusterManagerReconciler) ClusterUpgrade(ctx context.Context, clusterManager *clusterV1alpha1.ClusterManager) (ctrl.Result, error) {
+	log := r.Log.WithValues("clustermanager", clusterManager.GetNamespacedName())
+	log.Info("Start to reconcile phase for ClusterUpgrade")
+
+	if clusterManager.Spec.Provider == clusterV1alpha1.ProviderVSphere {
+		// service instance 체크
+		clmSuffix, ok := clusterManager.Annotations[clusterV1alpha1.AnnotationKeyClmSuffix]
+		if !ok {
+			err := fmt.Errorf("Cannot find cluster suffix from cluster manager")
+			log.Error(err, "failed to upgrade vsphere cluster")
+			return ctrl.Result{}, err
+		}
+		serviceInstanceName := fmt.Sprintf("%s-%s-%s", clusterManager.Name, clmSuffix, clusterManager.Spec.Version)
+
+		key := types.NamespacedName{
+			Name:      serviceInstanceName,
+			Namespace: clusterManager.Namespace,
+		}
+
+		serviceinstance := &servicecatalogv1beta1.ServiceInstance{}
+		if err := r.Get(context.TODO(), key, serviceinstance); errors.IsNotFound(err) {
+			log.Info("Waiting for vsphere upgrade service instance to be created")
+			return ctrl.Result{RequeueAfter: requeueAfter10Second}, nil
+		} else if err != nil {
+			log.Error(err, "Failed to get service instance")
+			return ctrl.Result{}, err
+		}
+
+		if serviceinstance.Status.ProvisionStatus != servicecatalogv1beta1.ServiceInstanceProvisionStatusProvisioned {
+			log.Info("Waiting for vsphere upgrade service instance to be provisioned")
+			return ctrl.Result{RequeueAfter: requeueAfter10Second}, nil
+		}
+	}
+
+	// kcp 업데이트
+	key := types.NamespacedName{
+		Name:      clusterManager.Name + "-control-plane",
+		Namespace: clusterManager.Namespace,
+	}
+
+	kcp := &controlplanev1.KubeadmControlPlane{}
+	if err := r.Get(context.TODO(), key, kcp); errors.IsNotFound(err) {
+		log.Error(err, "Cannot find kubeadmcontrolplane")
+		return ctrl.Result{}, err
+	} else if err != nil {
+		log.Error(err, "Failed to get kubeadmcontrolplane")
+		return ctrl.Result{}, err
+	}
+
+	// 단일 트랜잭션으로 업데이트 필요
+	if kcp.Spec.Version != clusterManager.Spec.Version {
+		kcp.Spec.Version = clusterManager.Spec.Version
+		if clusterManager.Spec.Provider == clusterV1alpha1.ProviderVSphere {
+			kcp.Spec.InfrastructureTemplate.Name = fmt.Sprintf("%s-%s", clusterManager.Name, clusterManager.Spec.Version)
+		}
+		if err := r.Update(context.TODO(), kcp); err != nil {
+			log.Error(err, "Failed to update kubeadmcontrolplane")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{RequeueAfter: requeueAfter10Second}, nil
+	}
+
+	// upgrade 완료한 machine 찾기
+	machines, err := r.GetUpgradeControlplaneMachines(clusterManager)
+	if err != nil {
+		log.Error(err, "Failed to list machines")
+		return ctrl.Result{RequeueAfter: requeueAfter10Second}, nil
+	}
+
+	if len(machines.NewMachineRunningList) == clusterManager.Spec.MasterNum {
+		log.Info(fmt.Sprintf("Controlplane nodes upgraded successfully (%d/%d)", len(machines.NewMachineRunningList), clusterManager.Spec.MasterNum))
+	} else {
+		log.Info(fmt.Sprintf("Controlplane nodes are upgrading (%d/%d)", len(machines.NewMachineRunningList), clusterManager.Spec.MasterNum))
+		log.Info(fmt.Sprintf("Need to upgrade machine: [%s]. Requeue After 1 min", strings.Join(machines.OldMachineList, ", ")))
+		return ctrl.Result{RequeueAfter: requeueAfter1Minute}, nil
+	}
+
+	// machineDeployment 업데이트
+	key = types.NamespacedName{
+		Name:      clusterManager.Name + "-md-0",
+		Namespace: clusterManager.Namespace,
+	}
+
+	md := &capiV1alpha3.MachineDeployment{}
+	if err := r.Get(context.TODO(), key, md); errors.IsNotFound(err) {
+		return ctrl.Result{}, nil
+	} else if err != nil {
+		log.Error(err, "Failed to get machineDeployment")
+		return ctrl.Result{}, err
+	}
+
+	if *md.Spec.Template.Spec.Version != clusterManager.Spec.Version {
+		*md.Spec.Template.Spec.Version = clusterManager.Spec.Version
+		if clusterManager.Spec.Provider == clusterV1alpha1.ProviderVSphere {
+			md.Spec.Template.Spec.InfrastructureRef.Name = fmt.Sprintf("%s-%s", clusterManager.Name, clusterManager.Spec.Version)
+		}
+		if err := r.Update(context.TODO(), md); err != nil {
+			log.Error(err, "Failed to update machinedeployment")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{RequeueAfter: requeueAfter10Second}, nil
+	}
+
+	// upgrade 완료한 machine 찾기
+	machines, err = r.GetUpgradeWorkerMachines(clusterManager)
+	if err != nil {
+		log.Error(err, "Failed to list machines")
+		return ctrl.Result{RequeueAfter: requeueAfter10Second}, nil
+	}
+
+	if len(machines.NewMachineRunningList) == clusterManager.Spec.WorkerNum {
+		log.Info(fmt.Sprintf("worker nodes upgraded successfully (%d/%d)", len(machines.NewMachineRunningList), clusterManager.Spec.WorkerNum))
+	} else {
+		log.Info(fmt.Sprintf("worker nodes are upgrading (%d/%d)", len(machines.NewMachineRunningList), clusterManager.Spec.WorkerNum))
+		log.Info(fmt.Sprintf("Need to upgrade machine: [%s]. Requeue After 1 min", strings.Join(machines.OldMachineList, ", ")))
+		return ctrl.Result{RequeueAfter: requeueAfter1Minute}, nil
+	}
+
+	clusterManager.Status.Version = clusterManager.Spec.Version
+	log.Info("Cluster upgradeded successfully")
+	return ctrl.Result{}, nil
+}
+
 func (r *ClusterManagerReconciler) kubeadmControlPlaneUpdate(ctx context.Context, clusterManager *clusterV1alpha1.ClusterManager) (ctrl.Result, error) {
 	log := r.Log.WithValues("clustermanager", clusterManager.GetNamespacedName())
 	log.Info("Start to reconcile phase for kubeadmControlPlaneUpdate")
@@ -342,25 +570,21 @@ func (r *ClusterManagerReconciler) kubeadmControlPlaneUpdate(ctx context.Context
 	if err := r.Get(context.TODO(), key, kcp); errors.IsNotFound(err) {
 		return ctrl.Result{}, nil
 	} else if err != nil {
-		log.Error(err, "Failed to get clusterRole")
+		log.Error(err, "Failed to get kubeadmControlPlane")
 		return ctrl.Result{}, err
 	}
 
 	//create helper for patch
-	helper, _ := patch.NewHelper(kcp, r.Client)
-	defer func() {
-		if err := helper.Patch(context.TODO(), kcp); err != nil {
-			r.Log.Error(err, "KubeadmControlPlane patch error")
-		}
-	}()
+	// helper, _ := patch.NewHelper(kcp, r.Client)
+	// defer func() {
+	// 	if err := helper.Patch(context.TODO(), kcp); err != nil {
+	// 		r.Log.Error(err, "KubeadmControlPlane patch error")
+	// 	}
+	// }()
 
-	if *kcp.Spec.Replicas != int32(clusterManager.Spec.MasterNum) {
-		*kcp.Spec.Replicas = int32(clusterManager.Spec.MasterNum)
-	}
-
-	if kcp.Spec.Version != clusterManager.Spec.Version {
-		kcp.Spec.Version = clusterManager.Spec.Version
-	}
+	// if *kcp.Spec.Replicas != int32(clusterManager.Spec.MasterNum) {
+	// 	*kcp.Spec.Replicas = int32(clusterManager.Spec.MasterNum)
+	// }
 
 	clusterManager.Status.Ready = true
 	return ctrl.Result{}, nil
@@ -378,25 +602,21 @@ func (r *ClusterManagerReconciler) machineDeploymentUpdate(ctx context.Context, 
 	if err := r.Get(context.TODO(), key, md); errors.IsNotFound(err) {
 		return ctrl.Result{}, nil
 	} else if err != nil {
-		log.Error(err, "Failed to get clusterRole")
+		log.Error(err, "Failed to get machineDeployment")
 		return ctrl.Result{}, err
 	}
 
 	//create helper for patch
-	helper, _ := patch.NewHelper(md, r.Client)
-	defer func() {
-		if err := helper.Patch(context.TODO(), md); err != nil {
-			r.Log.Error(err, "kubeadmcontrolplane patch error")
-		}
-	}()
+	// helper, _ := patch.NewHelper(md, r.Client)
+	// defer func() {
+	// 	if err := helper.Patch(context.TODO(), md); err != nil {
+	// 		r.Log.Error(err, "machineDeployment patch error")
+	// 	}
+	// }()
 
-	if *md.Spec.Replicas != int32(clusterManager.Spec.WorkerNum) {
-		*md.Spec.Replicas = int32(clusterManager.Spec.WorkerNum)
-	}
-
-	if *md.Spec.Template.Spec.Version != clusterManager.Spec.Version {
-		*md.Spec.Template.Spec.Version = clusterManager.Spec.Version
-	}
+	// if *md.Spec.Replicas != int32(clusterManager.Spec.WorkerNum) {
+	// 	*md.Spec.Replicas = int32(clusterManager.Spec.WorkerNum)
+	// }
 
 	return ctrl.Result{}, nil
 }
@@ -555,7 +775,7 @@ func (r *ClusterManagerReconciler) CreateGatewayResources(ctx context.Context, c
 		Services(util.ApiGatewayNamespace).
 		Get(context.TODO(), "gateway", metav1.GetOptions{})
 	if errors.IsNotFound(err) {
-		log.Info("Cannot found Service for gateway. Wait for installing api-gateway. Requeue after 1 min")
+		log.Info("Cannot find Service for gateway. Wait for installing api-gateway. Requeue after 1 min")
 		return ctrl.Result{RequeueAfter: requeueAfter1Minute}, nil
 	} else if err != nil {
 		log.Error(err, "Failed to get Service for gateway")

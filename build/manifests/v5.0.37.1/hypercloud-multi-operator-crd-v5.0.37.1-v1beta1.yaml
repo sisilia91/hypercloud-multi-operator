@@ -1,0 +1,640 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: hypercloud5-system/hypercloud-multi-operator-serving-cert
+    controller-gen.kubebuilder.io/version: v0.6.2
+  name: clusterclaims.claim.tmax.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.phase
+    name: Status
+    type: string
+  - JSONPath: .status.reason
+    name: Reason
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
+  group: claim.tmax.io
+  names:
+    kind: ClusterClaim
+    listKind: ClusterClaimList
+    plural: clusterclaims
+    shortNames:
+    - cc
+    singular: clusterclaim
+  preserveUnknownFields: false
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: ClusterClaim is the Schema for the clusterclaims API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: ClusterClaimSpec defines the desired state of ClusterClaim
+          properties:
+            clusterName:
+              description: The name of the cluster to be created
+              type: string
+            masterNum:
+              description: The number of master node
+              minimum: 1
+              type: integer
+            provider:
+              description: The type of provider
+              enum:
+              - AWS
+              - vSphere
+              type: string
+            providerAwsSpec:
+              description: Provider Aws Spec
+              properties:
+                masterDiskSize:
+                  description: 'The size of VM for master node. Example: 20'
+                  minimum: 8
+                  type: integer
+                masterType:
+                  description: 'The type of VM for master node. Example: m4.xlarge.
+                    see: https://aws.amazon.com/ec2/instance-types'
+                  type: string
+                region:
+                  description: The region where VM is working
+                  enum:
+                  - ap-northeast-1
+                  - ap-northeast-2
+                  - ap-south-1
+                  - ap-southeast-1
+                  - ap-northeast-2
+                  - ca-central-1
+                  - eu-central-1
+                  - eu-west-1
+                  - eu-west-2
+                  - eu-west-3
+                  - sa-east-1
+                  - us-east-1
+                  - us-east-2
+                  - us-west-1
+                  - us-west-2
+                  type: string
+                sshKey:
+                  description: The ssh key info to access VM
+                  type: string
+                workerDiskSize:
+                  description: 'The size of VM for worker node. Example: 20'
+                  minimum: 8
+                  type: integer
+                workerType:
+                  description: 'The type of VM for master node. Example: m4.xlarge.
+                    see: https://aws.amazon.com/ec2/instance-types'
+                  type: string
+              type: object
+            providerVsphereSpec:
+              description: Provider vSphere Spec
+              properties:
+                podCidr:
+                  description: 'The internal IP address cider block for pods. Example:
+                    10.0.0.0/16'
+                  pattern: ^[0-9]+.[0-9]+.[0-9]+.[0-9]+\/[0-9]+
+                  type: string
+                vcenterCpuNum:
+                  description: The number of cpus for vm
+                  minimum: 2
+                  type: integer
+                vcenterDataCenter:
+                  description: The name of data center
+                  type: string
+                vcenterDataStore:
+                  description: The name of data store
+                  type: string
+                vcenterDiskSize:
+                  description: 'The disk size for vm, write as GB without unit. Example:
+                    25'
+                  minimum: 20
+                  type: integer
+                vcenterFolder:
+                  description: The name of folder
+                  type: string
+                vcenterId:
+                  description: The user id of VCSA
+                  type: string
+                vcenterIp:
+                  description: The IP address of vCenter Server Application(VCSA)
+                  type: string
+                vcenterKcpIp:
+                  description: The IP address of control plane for remote cluster(vip)
+                  type: string
+                vcenterMemSize:
+                  description: 'The memory size for vm, write as MB without unit.
+                    Example: 8192'
+                  minimum: 2048
+                  type: integer
+                vcenterNetwork:
+                  description: The name of network
+                  type: string
+                vcenterPassword:
+                  description: The password of VCSA
+                  type: string
+                vcenterResourcePool:
+                  description: The name of resource pool
+                  type: string
+                vcenterTemplate:
+                  description: The template name for cloud init
+                  type: string
+                vcenterThumbprint:
+                  description: The TLS thumbprint of machine certificate
+                  type: string
+              type: object
+            version:
+              description: 'The version of kubernetes. Example: v1.19.6'
+              pattern: ^v[0-9].[0-9]+.[0-9]+
+              type: string
+            workerNum:
+              description: The number of worker node
+              minimum: 1
+              type: integer
+          required:
+          - clusterName
+          - masterNum
+          - provider
+          - version
+          - workerNum
+          type: object
+        status:
+          description: ClusterClaimStatus defines the observed state of ClusterClaim
+          properties:
+            message:
+              type: string
+            phase:
+              enum:
+              - Awaiting
+              - Admitted
+              - Approved
+              - Rejected
+              - Error
+              - ClusterDeleted
+              - Cluster Deleted
+              type: string
+            reason:
+              type: string
+          type: object
+      required:
+      - spec
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: hypercloud5-system/hypercloud-multi-operator-serving-cert
+    controller-gen.kubebuilder.io/version: v0.6.2
+  name: clustermanagers.cluster.tmax.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.provider
+    description: provider
+    name: Provider
+    type: string
+  - JSONPath: .spec.version
+    description: k8s version
+    name: Version
+    type: string
+  - JSONPath: .status.ready
+    description: is running
+    name: Ready
+    type: string
+  - JSONPath: .spec.masterNum
+    description: replica number of master
+    name: MasterNum
+    type: string
+  - JSONPath: .status.masterRun
+    description: running of master
+    name: MasterRun
+    type: string
+  - JSONPath: .spec.workerNum
+    description: replica number of worker
+    name: WorkerNum
+    type: string
+  - JSONPath: .status.workerRun
+    description: running of worker
+    name: WorkerRun
+    type: string
+  - JSONPath: .status.phase
+    description: cluster status phase
+    name: Phase
+    type: string
+  group: cluster.tmax.io
+  names:
+    kind: ClusterManager
+    listKind: ClusterManagerList
+    plural: clustermanagers
+    shortNames:
+    - clm
+    singular: clustermanager
+  preserveUnknownFields: false
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: ClusterManager is the Schema for the clustermanagers API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        awsSpec:
+          description: ProviderAwsSpec defines
+          properties:
+            masterDiskSize:
+              description: 'The size of VM for master node. Example: 20. The minimum
+                value is 8.'
+              type: integer
+            masterType:
+              description: The type of VM for master node
+              type: string
+            region:
+              description: The region where VM is working
+              type: string
+            sshKey:
+              description: The ssh key info to access VM
+              type: string
+            workerDiskSize:
+              description: 'The size of VM for worker node. Example: 20. The minimum
+                value is 8.'
+              type: integer
+            workerType:
+              description: The type of VM for worker node
+              type: string
+          type: object
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: ClusterManagerSpec defines the desired state of ClusterManager
+          properties:
+            masterNum:
+              description: The number of master node
+              type: integer
+            provider:
+              description: The name of cloud provider where VM is created
+              type: string
+            version:
+              description: The version of kubernetes
+              type: string
+            workerNum:
+              description: The number of worker node
+              type: integer
+          required:
+          - masterNum
+          - provider
+          - version
+          - workerNum
+          type: object
+        status:
+          description: ClusterManagerStatus defines the observed state of ClusterManager
+          properties:
+            applicationLink:
+              type: string
+            argoReady:
+              type: boolean
+            authClientReady:
+              type: boolean
+            controlPlaneEndpoint:
+              type: string
+            controlPlaneReady:
+              type: boolean
+            gatewayReady:
+              type: boolean
+            gatewayReadyMigration:
+              type: boolean
+            masterNum:
+              type: integer
+            masterRun:
+              type: integer
+            nodeInfo:
+              items:
+                description: NodeSystemInfo is a set of ids/uuids to uniquely identify
+                  the node.
+                properties:
+                  architecture:
+                    description: The Architecture reported by the node
+                    type: string
+                  bootID:
+                    description: Boot ID reported by the node.
+                    type: string
+                  containerRuntimeVersion:
+                    description: ContainerRuntime Version reported by the node through
+                      runtime remote API (e.g. docker://1.5.0).
+                    type: string
+                  kernelVersion:
+                    description: Kernel Version reported by the node from 'uname -r'
+                      (e.g. 3.16.0-0.bpo.4-amd64).
+                    type: string
+                  kubeProxyVersion:
+                    description: KubeProxy Version reported by the node.
+                    type: string
+                  kubeletVersion:
+                    description: Kubelet Version reported by the node.
+                    type: string
+                  machineID:
+                    description: 'MachineID reported by the node. For unique machine
+                      identification in the cluster this field is preferred. Learn
+                      more from man(5) machine-id: http://man7.org/linux/man-pages/man5/machine-id.5.html'
+                    type: string
+                  operatingSystem:
+                    description: The Operating System reported by the node
+                    type: string
+                  osImage:
+                    description: OS Image reported by the node from /etc/os-release
+                      (e.g. Debian GNU/Linux 7 (wheezy)).
+                    type: string
+                  systemUUID:
+                    description: SystemUUID reported by the node. For unique machine
+                      identification MachineID is preferred. This field is specific
+                      to Red Hat hosts https://access.redhat.com/documentation/en-us/red_hat_subscription_management/1/html/rhsm/uuid
+                    type: string
+                required:
+                - architecture
+                - bootID
+                - containerRuntimeVersion
+                - kernelVersion
+                - kubeProxyVersion
+                - kubeletVersion
+                - machineID
+                - operatingSystem
+                - osImage
+                - systemUUID
+                type: object
+              type: array
+            openSearchReady:
+              type: boolean
+            phase:
+              type: string
+            prometheusReady:
+              description: will be deprecated
+              type: boolean
+            provider:
+              type: string
+            ready:
+              type: boolean
+            traefikReady:
+              type: boolean
+            version:
+              type: string
+            workerNum:
+              type: integer
+            workerRun:
+              type: integer
+          type: object
+        vsphereSpec:
+          description: ProviderVsphereSpec defines
+          properties:
+            podCidr:
+              description: The internal IP address cider block for pods
+              type: string
+            vcenterCpuNum:
+              description: The number of cpus for vm
+              type: integer
+            vcenterDataCenter:
+              description: The name of data center
+              type: string
+            vcenterDataStore:
+              description: The name of data store
+              type: string
+            vcenterDiskSize:
+              description: The disk size for vm
+              type: integer
+            vcenterFolder:
+              description: The name of folder
+              type: string
+            vcenterId:
+              description: The user id of VCSA
+              type: string
+            vcenterIp:
+              description: The IP address of vCenter Server Application(VCSA)
+              type: string
+            vcenterKcpIp:
+              description: The IP address of control plane for remote cluster(vip)
+              type: string
+            vcenterMemSize:
+              description: The memory size for vm
+              type: integer
+            vcenterNetwork:
+              description: The name of network
+              type: string
+            vcenterPassword:
+              description: The password of VCSA
+              type: string
+            vcenterResourcePool:
+              description: The name of resource pool
+              type: string
+            vcenterTemplate:
+              description: The template name for cloud init
+              type: string
+            vcenterThumbprint:
+              description: The TLS thumbprint of machine certificate
+              type: string
+          type: object
+      required:
+      - spec
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: hypercloud5-system/hypercloud-multi-operator-serving-cert
+    controller-gen.kubebuilder.io/version: v0.6.2
+  name: clusterregistrations.cluster.tmax.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.phase
+    description: cluster status phase
+    name: Phase
+    type: string
+  - JSONPath: .status.reason
+    description: cluster status reason
+    name: Reason
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
+  group: cluster.tmax.io
+  names:
+    kind: ClusterRegistration
+    listKind: ClusterRegistrationList
+    plural: clusterregistrations
+    shortNames:
+    - clr
+    singular: clusterregistration
+  preserveUnknownFields: false
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: ClusterRegistration is the Schema for the clusterregistrations
+        API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: ClusterRegistrationSpec defines the desired state of ClusterRegistration
+          properties:
+            clusterName:
+              description: The name of the cluster to be registered
+              type: string
+            kubeConfig:
+              description: The kubeconfig file of the cluster to be registered
+              format: data-url
+              type: string
+          required:
+          - clusterName
+          - kubeConfig
+          type: object
+        status:
+          description: ClusterRegistrationStatus defines the observed state of ClusterRegistration
+          properties:
+            clusterValidated:
+              type: boolean
+            masterNum:
+              type: integer
+            masterRun:
+              type: integer
+            nodeInfo:
+              items:
+                description: NodeSystemInfo is a set of ids/uuids to uniquely identify
+                  the node.
+                properties:
+                  architecture:
+                    description: The Architecture reported by the node
+                    type: string
+                  bootID:
+                    description: Boot ID reported by the node.
+                    type: string
+                  containerRuntimeVersion:
+                    description: ContainerRuntime Version reported by the node through
+                      runtime remote API (e.g. docker://1.5.0).
+                    type: string
+                  kernelVersion:
+                    description: Kernel Version reported by the node from 'uname -r'
+                      (e.g. 3.16.0-0.bpo.4-amd64).
+                    type: string
+                  kubeProxyVersion:
+                    description: KubeProxy Version reported by the node.
+                    type: string
+                  kubeletVersion:
+                    description: Kubelet Version reported by the node.
+                    type: string
+                  machineID:
+                    description: 'MachineID reported by the node. For unique machine
+                      identification in the cluster this field is preferred. Learn
+                      more from man(5) machine-id: http://man7.org/linux/man-pages/man5/machine-id.5.html'
+                    type: string
+                  operatingSystem:
+                    description: The Operating System reported by the node
+                    type: string
+                  osImage:
+                    description: OS Image reported by the node from /etc/os-release
+                      (e.g. Debian GNU/Linux 7 (wheezy)).
+                    type: string
+                  systemUUID:
+                    description: SystemUUID reported by the node. For unique machine
+                      identification MachineID is preferred. This field is specific
+                      to Red Hat hosts https://access.redhat.com/documentation/en-us/red_hat_subscription_management/1/html/rhsm/uuid
+                    type: string
+                required:
+                - architecture
+                - bootID
+                - containerRuntimeVersion
+                - kernelVersion
+                - kubeProxyVersion
+                - kubeletVersion
+                - machineID
+                - operatingSystem
+                - osImage
+                - systemUUID
+                type: object
+              type: array
+            phase:
+              type: string
+            provider:
+              type: string
+            ready:
+              type: boolean
+            reason:
+              type: string
+            secretReady:
+              type: boolean
+            version:
+              type: string
+            workerNum:
+              type: integer
+            workerRun:
+              type: integer
+          type: object
+      required:
+      - spec
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

@@ -51,9 +51,6 @@ objects:
   metadata:
     name: ${ClusterName}-control-plane
     namespace: default
-  labels:
-    cluster.tmax.io/cluster-name: '${ClusterName}'
-    cluster.tmax.io/controlplane: controlplane
   spec:
     infrastructureTemplate:
       apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
@@ -215,9 +212,6 @@ objects:
   metadata:
     name: ${ClusterName}-md-0
     namespace: default
-    labels:
-      cluster.tmax.io/cluster-name: '${ClusterName}'
-      cluster.tmax.io/worker: worker
   spec:
     clusterName: ${ClusterName}
     replicas: ${WorkerNum}

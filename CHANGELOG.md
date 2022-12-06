@@ -1,6 +1,103 @@
 # HyperCloud-Multi-Operator changelog!!
 All notable changes to this project will be documented in this file.
 
+<!-------------------- v5.0.38.0 start -------------------->
+
+## HyperCloud-Multi-Operator_5.0.38.0 (2022. 12. 01. (목) 12:25:58 KST)
+
+### Added
+
+### Changed
+
+### Fixed
+
+### CRD yaml
+
+### Etc
+
+<!--------------------- v5.0.38.0 end --------------------->
+
+<!-------------------- v5.0.37.1 start -------------------->
+
+## HyperCloud-Multi-Operator_5.0.37.1 (2022. 11. 24. (목) 19:42:56 KST)
+
+### Added
+
+### Changed
+  - [mod] fix webhook error by sjoh0704
+
+### Fixed
+
+### CRD yaml
+
+### Etc
+
+<!--------------------- v5.0.37.1 end --------------------->
+
+<!-------------------- v5.0.37.0 start -------------------->
+
+## HyperCloud-Multi-Operator_5.0.37.0 (2022. 11. 24. (목) 15:41:31 KST)
+
+### Added
+  - [feat] argocd application update by sjoh0704
+  - [feat] scaling 기능 추가/scaling, upgrade 관련 webhook 추가 by sjoh0704
+  - [feat] crd status에 masterNum/workerNum 추가 / masterNum webhook 추가/ error fix by sjoh0704
+  - [feat] capv cluster upgrade 기능 추가 by sjoh0704
+  - [feat] capa cluster upgrade 기능 추가 by sjoh0704
+  - [feat] clusterclaim 생성 기준 추가 / 불필요한  webhook 제거 by sjoh0704
+
+### Changed
+  - [mod] fix reconcile error by sjoh0704
+  - [mod] refactoring-전체 parameter를 interface로 묶어서 관리 by sjoh0704
+  - [mod] capv upgrade 기능 수정 및 최적화 by sjoh0704
+
+### Fixed
+
+### CRD yaml
+
+### Etc
+  - [etc] log 오타 수정 by sjoh0704
+
+<!--------------------- v5.0.37.0 end --------------------->
+
+<!-------------------- v5.0.36.0 start -------------------->
+
+## HyperCloud-Multi-Operator_5.0.36.0 (2022. 11. 11. (금) 13:01:41 KST)
+
+### Added
+
+### Changed
+  - [mod] deploy.sh 수정 by sjoh0704
+  - [mod] fix error in validating webhook by sjoh0704
+  - [mod] capi-aws-template 수정:  ebs volume 크기 수정 8 => 30 by sjoh0704
+
+### Fixed
+
+### CRD yaml
+  - [crd] provider aws spec에 disk size 지정 변수 추가 by sjoh0704
+
+### Etc
+
+<!--------------------- v5.0.36.0 end --------------------->
+
+<!-------------------- v5.0.35.0 start -------------------->
+
+## HyperCloud-Multi-Operator_5.0.35.0 (2022. 11. 04. (금) 13:22:00 KST)
+
+### Added
+  - [feat] single cluster 생성시 etcd listen-metrics-urls에 master ip 추가 by sjoh0704
+
+### Changed
+  - [mod] 5.0.34.5 clustertemplate 수정 by sjoh0704
+
+### Fixed
+
+### CRD yaml
+
+### Etc
+
+<!--------------------- v5.0.35.0 end --------------------->
+
 <!-------------------- v5.0.34.5 start -------------------->
 
 ## HyperCloud-Multi-Operator_5.0.34.5 (2022. 10. 25. (화) 13:46:36 KST)
